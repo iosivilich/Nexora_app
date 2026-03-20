@@ -35,10 +35,16 @@ Para garantizar la privacidad de los datos, se han implementado políticas de RL
 - **Escritura Privada**: Un usuario solo puede actualizar su propio registro en `profiles`.
 - **Mensajería**: El acceso a la tabla `messages` está restringido estrictamente al emisor (`sender_id`) y al receptor (`receiver_id`).
 
-## 📁 Migraciones
-Las definiciones de tablas y políticas se gestionan mediante archivos `.sql` en la carpeta `/migrations`.
-- **[0001_initial_schema.sql](./migrations/0001_initial_schema.sql)**: Esquema base de perfiles, consultores y mensajería.
+## 📁 Estructura de Migraciones (SQL)
+
+Para mayor claridad y mantenimiento, el esquema se ha dividido en archivos modulares :
+
+1.  **[01_user_profiles.sql](./migrations/01_user_profiles.sql)**: Definición del rol de usuario y tabla maestra de perfiles.
+2.  **[02_consultants_data.sql](./migrations/02_consultants_data.sql)**: Datos profesionales específicos del consultor.
+3.  **[03_favorites_system.sql](./migrations/03_favorites_system.sql)**: Lógica para el guardado de expertos.
+4.  **[04_messaging_system.sql](./migrations/04_messaging_system.sql)**: Estructura del sistema de chat bilateral.
+5.  **[05_rls_policies.sql](./migrations/05_rls_policies.sql)**: Implementación de las reglas de seguridad (RLS) para todas las tablas anteriores.
 
 ---
 > [!IMPORTANT]
-> Al configurar Supabase, recuerda habilitar el "User Role Enum" tal como se define en la migración inicial antes de crear las tablas dependientes.
+> Ejecuta los archivos en orden numérico para evitar errores de dependencias de claves foráneas.
