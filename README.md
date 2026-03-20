@@ -70,15 +70,36 @@ Hemos elevado la experiencia de búsqueda en la sección de **Explorar** con nue
 - **Vista de Detalle**: Al hacer clic en "Ver Perfil", se despliega un modal premium que contiene la biografía completa del consultor, estadísticas detalladas y tags de especialidad.
 - **Acciones Rápidas**: Integración de botones de llamado a la acción para agendar consultorías o enviar mensajes directamente desde el detalle.
 
-### 4. Optimización de Despliegue ⚡
+### 4. Optimización de Despliegue y PWA ⚡
 - **Vercel SPA Fix**: Configuración de `vercel.json` para manejar redirecciones automáticas, eliminando errores 404 al recargar la página en producción.
+- **Soporte PWA**: Implementación de `manifest.json` e iconos para permitir la instalación de la app en dispositivos móviles y escritorio.
 - **Data Enrichment**: Ampliación de la base de datos de ejemplo con perfiles verificados y datos realistas de experiencia y ciudad.
+
+### 5. Reorganización del Repositorio 📂
+- **Carpeta Docs**: Centralización de la documentación técnica y de negocio en subcarpetas estructuradas.
+- **Frontend Consolidado**: Código fuente integrado en `Docs/FRONTEND/` para una mejor gestión de activos y diseño.
+- **Limpieza de Seguridad**: Remoción de archivos sensibles (.env, .vercel) y eliminación de versiones obsoletas del diseño.
+
+## 📁 Estructura del Proyecto
+```text
+Nexora_app/
+├── Docs/
+│   ├── ARQUITECTURA/    # Tech Stack y Arquitectura.
+│   ├── BASE_DATOS/      # Esquema Supabase y Migraciones.
+│   ├── BRANDING/        # Moodboard, Colores y Tipografía.
+│   ├── FRONTEND/        # Código fuente (Vite/React) y PWA.
+│   ├── NEGOCIO/         # Modelo de Negocio y Flujos.
+│   └── figma-mcp-server/ # Servidor de integración Figma.
+└── README.md            # Guía principal.
+```
 
 ## 🚀 Roadmap
 - [ ] Implementación de Notificaciones Push para mensajes nuevos.
 - [ ] Dashboard de analíticas avanzadas para empresas.
 - [ ] Sistema de validación de habilidades mediante IA.
 - [x] Filtros avanzados y perfiles detallados en la sección Explorar.
+- [x] Soporte PWA e instalación en dispositivos.
+- [x] Reorganización completa de la arquitectura del repositorio.
 
 ---
 *Nexora - El consultor correcto, en el momento exacto.*
