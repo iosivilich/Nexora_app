@@ -13,6 +13,7 @@ interface ConsultantCardProps {
   expertise: string[];
   image: string;
   verified?: boolean;
+  onViewProfile?: () => void;
 }
 
 export function ConsultantCard({
@@ -26,6 +27,7 @@ export function ConsultantCard({
   expertise,
   image,
   verified = false,
+  onViewProfile,
 }: ConsultantCardProps) {
   return (
     <GlassCard className="p-6 relative overflow-hidden group">
@@ -96,6 +98,7 @@ export function ConsultantCard({
 
         {/* Action Button */}
         <motion.button
+          onClick={onViewProfile}
           className="w-full py-3 rounded-lg text-white relative overflow-hidden group/btn"
           style={{
             background: 'linear-gradient(135deg, #2563EB 0%, #6D5EF3 100%)',
