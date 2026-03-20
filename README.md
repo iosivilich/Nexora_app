@@ -54,10 +54,31 @@ Nexora App hereda y potencia la identidad visual consolidada en el proyecto Nexo
 - **Canales Glass:** Tarjetas de contacto con efecto glass para información oficial (Email, Teléfono, etc.).
 - **Nexa AI Local Potenciada:** Interfaz de chat con botones interactivos y normalización de texto inteligente (ignora acentos y mayúsculas) para una interacción natural.
 
+## 🔄 Actualizaciones Recientes (Refinamiento de Exploración)
+
+Hemos elevado la experiencia de búsqueda en la sección de **Explorar** con nuevas funcionalidades avanzadas:
+
+### 1. Sistema de Filtros Avanzados 🔍
+- **Filtros Dinámicos**: Implementación de criterios específicos como Rating ( ⭐), Años de Experiencia, Edad, Proyectos Realizados y Ciudad.
+- **Interfaz Animada**: Panel lateral desplegable con efectos suaves de entrada y salida mediante *Framer Motion (AnimatePresence)*.
+- **Limpieza Rápida**: Botón de restablecimiento integral para volver a la vista general con un solo toque.
+
+### 2. Navegación por Áreas (Dropdown) 🛠️
+- Sustitución de las píldoras horizontales por un **menú desplegable inteligente**. Esto permite una selección más rápida y organizada de las más de 10 categorías de especialización disponibles.
+
+### 3. Perfiles Detallados (Profile Modal) 📑
+- **Vista de Detalle**: Al hacer clic en "Ver Perfil", se despliega un modal premium que contiene la biografía completa del consultor, estadísticas detalladas y tags de especialidad.
+- **Acciones Rápidas**: Integración de botones de llamado a la acción para agendar consultorías o enviar mensajes directamente desde el detalle.
+
+### 4. Optimización de Despliegue ⚡
+- **Vercel SPA Fix**: Configuración de `vercel.json` para manejar redirecciones automáticas, eliminando errores 404 al recargar la página en producción.
+- **Data Enrichment**: Ampliación de la base de datos de ejemplo con perfiles verificados y datos realistas de experiencia y ciudad.
+
 ## 🚀 Roadmap
 - [ ] Implementación de Notificaciones Push para mensajes nuevos.
 - [ ] Dashboard de analíticas avanzadas para empresas.
 - [ ] Sistema de validación de habilidades mediante IA.
+- [x] Filtros avanzados y perfiles detallados en la sección Explorar.
 
 ---
 *Nexora - El consultor correcto, en el momento exacto.*
