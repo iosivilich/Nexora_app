@@ -1,35 +1,44 @@
-# Base de Datos
+# Documentación Técnica: Base de Datos (Supabase)
 
-Nexora utiliza **Supabase** como proveedor de base de datos y autenticación para una gestión escalable y segura.
+Esta sección documenta la arquitectura de datos relacional de Nexora App, diseñada para ser implementada sobre **PostgreSQL** dentro del ecosistema de **Supabase**.
 
-## Esquema Propuesto
+## 🏗️ Arquitectura del Esquema
+El diseño sigue un **modelo bilateral** donde cada registro en la tabla de autenticación de Supabase (`auth.users`) se vincula a un perfil público con un rol específico.
 
-### Tabla: `consultores`
-| Campo | Tipo | Descripción |
-| :--- | :--- | :--- |
-| `id` | `uuid` | Identificador único (Primary Key) |
-| `name` | `text` | Nombre completo del consultor |
-| `role` | `text` | Especialidad o cargo profesional |
-| `city` | `text` | Ciudad de residencia |
-| `rating` | `float` | Puntuación acumulada (0-5) |
-| `projects` | `int` | Número de proyectos realizados |
-| `experience` | `int` | Años de experiencia profesional |
-| `age` | `int` | Edad del consultor |
-| `expertise` | `text[]` | Array de habilidades principales |
-| `bio` | `text` | Biografía y trayectoria |
-| `image_url` | `text` | Enlace a la fotografía de perfil |
-| `verified` | `boolean` | Estado de verificación Elite |
+### Tablas Principales
 
-### Tabla: `usuarios` (Bilateral)
-| Campo | Tipo | Descripción |
-| :--- | :--- | :--- |
-| `id` | `uuid` | Identificador único |
-| `email` | `text` | Correo electrónico institucional |
-| `type` | `enum` | `EMPRESA` o `CONSULTOR` |
-| `favorites` | `uuid[]` | Lista de IDs de consultores guardados |
+#### 1. `profiles`
+Centraliza la información compartida por todos los usuarios.
+- **PK**: `id` (uuid) -> Relación 1:1 con `auth.users`.
+- **Campos**: `full_name`, `avatar_url`, `city`, `user_type` (Enum: EMPRESA | CONSULTOR).
+- **Finalidad**: Gestión de identidad única y tipo de acceso.
 
-## Migraciones
-Actualmente el proyecto utiliza un estado inicial basado en un array de datos estáticos en el frontend para el prototipo. Las migraciones de Supabase se encuentran en fase de desarrollo interno.
+#### 2. `consultants`
+Contiene la información profesional extendida para usuarios con rol `CONSULTOR`.
+- **PK**: `id` (uuid) -> Referencia a `profiles(id)`.
+- **Campos Clave**: `role`, `rating`, `projects`, `experience_years`, `age`, `bio`, `expertise` (text[]), `verified`.
+- **Finalidad**: Proveer datos enriquecidos para el sistema de filtros en la página de Explorar.
 
-> [!CAUTION]
-> No subir archivos `.env` o credenciales de Supabase al repositorio público.
+#### 3. `favorites`
+Permite a las empresas guardar consultores de interés.
+- **Relación**: N:M entre `profiles` (Empresas) y `consultants` (Talento).
+- **Reglas**: Índice único en `(user_id, consultant_id)` para evitar duplicados.
+
+#### 4. `messages`
+Sistema de comunicación directa bilateral.
+- **Relación**: Registra conversaciones entre cualquier par de usuarios validados.
+- **Campos**: `sender_id`, `receiver_id`, `content`, `is_read`, `created_at`.
+
+## 🔒 Seguridad (Row Level Security - RLS)
+Para garantizar la privacidad de los datos, se han implementado políticas de RLS:
+- **Lectura Pública**: Perfiles y consultores son visibles por todos los usuarios autenticados.
+- **Escritura Privada**: Un usuario solo puede actualizar su propio registro en `profiles`.
+- **Mensajería**: El acceso a la tabla `messages` está restringido estrictamente al emisor (`sender_id`) y al receptor (`receiver_id`).
+
+## 📁 Migraciones
+Las definiciones de tablas y políticas se gestionan mediante archivos `.sql` en la carpeta `/migrations`.
+- **[0001_initial_schema.sql](./migrations/0001_initial_schema.sql)**: Esquema base de perfiles, consultores y mensajería.
+
+---
+> [!IMPORTANT]
+> Al configurar Supabase, recuerda habilitar el "User Role Enum" tal como se define en la migración inicial antes de crear las tablas dependientes.
