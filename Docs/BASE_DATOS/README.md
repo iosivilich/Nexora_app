@@ -37,14 +37,8 @@ Para garantizar la privacidad de los datos, se han implementado políticas de RL
 
 ## 📁 Estructura de Migraciones (SQL)
 
-Para mayor claridad y mantenimiento, el esquema se ha dividido en archivos modulares :
-
-1.  **[01_user_profiles.sql](./migrations/01_user_profiles.sql)**: Definición del rol de usuario y tabla maestra de perfiles.
-2.  **[02_consultants_data.sql](./migrations/02_consultants_data.sql)**: Datos profesionales específicos del consultor.
-3.  **[03_favorites_system.sql](./migrations/03_favorites_system.sql)**: Lógica para el guardado de expertos.
-4.  **[04_messaging_system.sql](./migrations/04_messaging_system.sql)**: Estructura del sistema de chat bilateral.
-5.  **[05_rls_policies.sql](./migrations/05_rls_policies.sql)**: Implementación de las reglas de seguridad (RLS) para todas las tablas anteriores.
+Las migraciones de base de datos se encuentran actualmente en **fase de refinamiento de flujo**. Se añadirán nuevos archivos SQL una vez que se valide la lógica de negocio final para asegurar una integración perfecta con Supabase.
 
 ---
-> [!IMPORTANT]
-> Ejecuta los archivos en orden numérico para evitar errores de dependencias de claves foráneas.
+> [!NOTE]
+> La implementación física en Supabase se realizará tras la validación de los flujos de usuario detallados en la carpeta `NEGOCIO`.
