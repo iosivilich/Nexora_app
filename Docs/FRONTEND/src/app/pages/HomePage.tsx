@@ -3,6 +3,7 @@ import { ConsultantCard } from '../components/ConsultantCard';
 import { StatsCard } from '../components/StatsCard';
 import { Users, Briefcase, TrendingUp, Sparkles, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
+import { Link } from 'react-router';
 
 const consultants = [
   {
@@ -11,6 +12,8 @@ const consultants = [
     location: 'Madrid, España',
     rating: 4.9,
     projects: 47,
+    experience: 12,
+    age: 38,
     expertise: ['Digital', 'Estrategia', 'Innovación'],
     image: 'https://images.unsplash.com/photo-1613473350016-1fe047d6d360?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmZW1hbGUlMjBleGVjdXRpdmUlMjBwb3J0cmFpdHxlbnwxfHx8fDE3NzMzODQyMDh8MA&ixlib=rb-4.1.0&q=80&w=1080',
     verified: true,
@@ -21,6 +24,8 @@ const consultants = [
     location: 'Barcelona, España',
     rating: 4.8,
     projects: 35,
+    experience: 15,
+    age: 42,
     expertise: ['Cambio', 'Liderazgo', 'Cultura'],
     image: 'https://images.unsplash.com/photo-1530281834572-02d15fa61f64?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtYWxlJTIwYnVzaW5lc3MlMjBwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdHxlbnwxfHx8fDE3NzMzNTQxMjR8MA&ixlib=rb-4.1.0&q=80&w=1080',
     verified: true,
@@ -31,6 +36,8 @@ const consultants = [
     location: 'Valencia, España',
     rating: 5.0,
     projects: 62,
+    experience: 18,
+    age: 45,
     expertise: ['Estrategia', 'Growth', 'M&A'],
     image: 'https://images.unsplash.com/photo-1758369636875-60b3dcb76366?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhc2lhbiUyMGJ1c2luZXNzd29tYW4lMjBwcm9mZXNzaW9uYWx8ZW58MXx8fHwxNzczMzQwMDEyfDA&ixlib=rb-4.1.0&q=80&w=1080',
     verified: true,
@@ -41,6 +48,8 @@ const consultants = [
     location: 'Lisboa, Portugal',
     rating: 4.7,
     projects: 29,
+    experience: 8,
+    age: 34,
     expertise: ['Operaciones', 'Lean', 'Eficiencia'],
     image: 'https://images.unsplash.com/photo-1769839271768-aee5469799ee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBjb25zdWx0YW50JTIwYnVzaW5lc3MlMjBtZWV0aW5nfGVufDF8fHx8MTc3MzQzMzczNHww&ixlib=rb-4.1.0&q=80&w=1080',
     verified: false,
@@ -73,17 +82,19 @@ export function HomePage() {
           estrategia y gestión de cambio.
         </p>
         <div className="flex flex-wrap gap-4">
-          <motion.button
-            className="px-8 py-4 rounded-xl text-white shadow-2xl shadow-[#2563EB]/50 flex items-center gap-2"
-            style={{
-              background: 'linear-gradient(135deg, #2563EB 0%, #6D5EF3 100%)',
-            }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <span>Explorar Consultores</span>
-            <ArrowRight className="w-5 h-5" />
-          </motion.button>
+          <Link to="/explorar">
+            <motion.button
+              className="px-8 py-4 rounded-xl text-white shadow-2xl shadow-[#2563EB]/50 flex items-center gap-2"
+              style={{
+                background: 'linear-gradient(135deg, #2563EB 0%, #6D5EF3 100%)',
+              }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <span>Explorar Consultores</span>
+              <ArrowRight className="w-5 h-5" />
+            </motion.button>
+          </Link>
           <motion.button
             className="px-8 py-4 rounded-xl border border-white/20 text-white backdrop-blur-xl hover:bg-white/5 transition-colors"
             style={{
