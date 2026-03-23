@@ -41,23 +41,11 @@ export function Header() {
             </Link>
           </div>
 
-          {/* Search Bar - Hidden on mobile */}
-          <div className="hidden lg:flex flex-1 max-w-2xl mx-8">
-            <div className="relative w-full">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-              <input
-                type="text"
-                placeholder="Buscar consultores, organizaciones o proyectos..."
-                className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-[#2563EB] focus:bg-white/10 transition-all backdrop-blur-xl"
-              />
-            </div>
-          </div>
+
 
           {/* Actions */}
           <div className="flex items-center gap-2 lg:gap-4">
-            <button className="lg:hidden p-2 hover:bg-white/5 rounded-lg transition-colors">
-              <Search className="w-5 h-5 text-white" />
-            </button>
+
             <button className="relative p-2 hover:bg-white/5 rounded-lg transition-colors">
               <Bell className="w-5 h-5 text-white" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-[#22C55E] rounded-full border border-[#0A1F44]"></span>
