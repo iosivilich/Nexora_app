@@ -32,9 +32,7 @@ export function Header() {
         <div className="flex items-center justify-between h-16 lg:h-20">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <button className="lg:hidden p-2 hover:bg-white/5 rounded-lg transition-colors">
-              <Menu className="w-6 h-6 text-white" />
-            </button>
+
             <Link to="/" className="flex items-center gap-2">
               <img src="/logo.png" alt="Nexora Logo" className="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(37,99,235,0.5)]" />
               <span className="text-2xl tracking-tight text-white font-bold" style={{ fontFamily: 'var(--font-accent)' }}>
