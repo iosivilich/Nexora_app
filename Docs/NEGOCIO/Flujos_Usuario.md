@@ -9,18 +9,19 @@ Nexora App prioriza la fluidez y la accesibilidad para ambas partes:
     *   **Consultor**: Detalla especialidades, años de experiencia y carga su biografía profesional.
 
 ## 2. Búsqueda y Exploración 🔍
-*   El usuario accede a la sección de **Explorar**.
-*   Utiliza la barra de búsqueda para filtrar por términos específicos.
-*   Aplica **Filtros Avanzados** (Rating, Años de Experiencia, Ciudad, Edad).
-*   Selecciona un **Área de Trabajo** desde el menú desplegable.
+*   Acceso simplificado: El usuario navega a la sección de **Explorar** directamente desde el botón principal ("Explorar Consultores") en la página de inicio o mediante la barra lateral.
+*   Interfaz limpia: Se ha eliminado la barra de búsqueda del encabezado global para priorizar la exploración detallada en la página dedicada.
+*   Búsqueda especializada: Dentro de la página de Explorar, el usuario utiliza la barra de búsqueda integrada para filtrar por habilidades o nombres.
+*   Filtros dinámicos: Aplica **Filtros Avanzados** (Rating, Años de Experiencia, Ciudad, Edad) desde el panel lateral interactivo.
+*   Segmentación: Selecciona su **Área de Trabajo** (IA, Data Science, etc.) mediante un menú desplegable de categorías.
 
 ## 3. Visualización y Gestión de Perfiles ⭐
-*   El usuario ve una tarjeta resumida del consultor.
-*   Hace clic en **Ver Perfil** para abrir el detalle completo (Modal).
-*   Visualiza la biografía y estadísticas detalladas.
-*   Realiza acciones: **Agendar Consultoría** o **Enviar Mensaje**.
-*   Opcionalmente, puede guardar al experto en su lista de **Favoritos**.
+*   El usuario interactúa con tarjetas dinámicas que muestran estadísticas clave (Experiencia, Proyectos).
+*   Hace clic en **Ver Perfil** para abrir un modal premium con el detalle completo del consultor.
+*   Consulta la biografía y especialidades detalladas.
+*   Acciones de conversión: Botones directos para **Agendar Consultoría** o **Enviar Mensaje**.
 
 ## 4. Comunicación Directa 💬
-*   El centro de mensajería permite coordinar entrevistas y entregas en tiempo real.
-*   Panel dedicado para cada conversación activa.
+*   Unificación: Los mensajes fluyen a través de un centro dedicado que permite coordinar entrevistas y acuerdos en tiempo real.
+*   Seguimiento: Panel interactivo para gestionar múltiples hilos de conversación de forma segura.
+
