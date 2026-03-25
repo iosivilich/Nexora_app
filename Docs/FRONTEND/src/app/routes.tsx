@@ -8,20 +8,31 @@ import { MessagesPage } from "./pages/MessagesPage";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { LoginPage } from "./pages/LoginPage";
+import { ProtectedRoute } from "./ProtectedRoute";
 
 export const router = createBrowserRouter([
   {
+    path: "/login",
+    Component: LoginPage,
+  },
+  {
     path: "/",
-    Component: RootLayout,
+    Component: ProtectedRoute,
     children: [
-      { index: true, Component: HomePage },
-      { path: "explorar", Component: ExplorePage },
-      { path: "red", Component: NetworkPage },
-      { path: "proyectos", Component: ProjectsPage },
-      { path: "mensajes", Component: MessagesPage },
-      { path: "analytics", Component: AnalyticsPage },
-      { path: "perfil", Component: ProfilePage },
-      { path: "configuracion", Component: SettingsPage },
+      {
+        Component: RootLayout,
+        children: [
+          { index: true, Component: HomePage },
+          { path: "explorar", Component: ExplorePage },
+          { path: "red", Component: NetworkPage },
+          { path: "proyectos", Component: ProjectsPage },
+          { path: "mensajes", Component: MessagesPage },
+          { path: "analytics", Component: AnalyticsPage },
+          { path: "perfil", Component: ProfilePage },
+          { path: "configuracion", Component: SettingsPage },
+        ],
+      },
     ],
   },
 ]);

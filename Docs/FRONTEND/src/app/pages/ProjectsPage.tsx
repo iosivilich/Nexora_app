@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Briefcase, Plus, Calendar, DollarSign, Users, Clock, Upload, X } from 'lucide-react';
+import { Briefcase, Plus, Calendar, DollarSign, Users, Clock, Upload, X, Search, ArrowRight } from 'lucide-react';
 import { GlassCard } from '../components/GlassCard';
+import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router';
 
 const publishedProjects = [
   {
@@ -40,7 +42,8 @@ const publishedProjects = [
 ];
 
 export function ProjectsPage() {
-  const [activeTab, setActiveTab] = useState<'published' | 'new'>('published');
+  const { profile } = useAuth();
+  const isConsultant = profile?.user_type === 'CONSULTOR';
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [newProject, setNewProject] = useState({
     title: '',
@@ -50,8 +53,10 @@ export function ProjectsPage() {
     skills: '',
   });
 
+  // Simulamos que el consultor no tiene postulaciones aún
+  const projects = isConsultant ? [] : publishedProjects;
+
   const handleSubmitProject = () => {
-    // Aquí iría la lógica para enviar el proyecto
     setShowNewProjectModal(false);
     setNewProject({
       title: '',
@@ -61,6 +66,39 @@ export function ProjectsPage() {
       skills: '',
     });
   };
+
+  if (isConsultant && projects.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+        <motion.div
+           initial={{ opacity: 0, scale: 0.95 }}
+           animate={{ opacity: 1, scale: 1 }}
+        >
+          <GlassCard className="p-16 max-w-2xl mx-auto border-white/10 shadow-2xl">
+            <div className="w-24 h-24 bg-[#2563EB]/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-[#2563EB]/30">
+              <Search className="w-10 h-10 text-[#2563EB]" />
+            </div>
+            <h2 className="text-3xl text-white mb-4 font-bold" style={{ fontFamily: 'var(--font-secondary)' }}>
+              ¿Buscas tu próximo desafío?
+            </h2>
+            <p className="text-lg text-white/50 mb-10">
+              Actualmente no tienes postulaciones activas. Explora los proyectos publicados por las mejores empresas y empieza a colaborar.
+            </p>
+            <Link to="/explorar">
+              <motion.button
+                className="px-10 py-5 bg-gradient-to-r from-[#2563EB] to-[#6D5EF3] text-white rounded-2xl flex items-center justify-center gap-3 mx-auto font-bold shadow-2xl shadow-blue-900/40"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <span>Descubrir Proyectos</span>
+                <ArrowRight className="w-5 h-5" />
+              </motion.button>
+            </Link>
+          </GlassCard>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -73,20 +111,24 @@ export function ProjectsPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-4xl lg:text-5xl text-white mb-3" style={{ fontFamily: 'var(--font-secondary)' }}>
-              Proyectos
+              {isConsultant ? 'Mis Postulaciones' : 'Proyectos'}
             </h1>
             <p className="text-lg text-white/70">
-              Publica proyectos y encuentra consultores para colaborar
+              {isConsultant 
+                ? 'Controla el estado de tus candidaturas estratégicas' 
+                : 'Publica proyectos y encuentra consultores para colaborar'}
             </p>
           </div>
 
-          <button
-            onClick={() => setShowNewProjectModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#2563EB] to-[#6D5EF3] text-white rounded-xl hover:scale-105 transition-transform shadow-lg shadow-[#2563EB]/30"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">Nuevo Proyecto</span>
-          </button>
+          {!isConsultant && (
+            <button
+              onClick={() => setShowNewProjectModal(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#2563EB] to-[#6D5EF3] text-white rounded-xl hover:scale-105 transition-transform shadow-lg shadow-[#2563EB]/30"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="hidden sm:inline">Nuevo Proyecto</span>
+            </button>
+          )}
         </div>
 
         {/* Stats */}
@@ -99,7 +141,7 @@ export function ProjectsPage() {
               <div>
                 <p className="text-sm text-white/60">Proyectos Activos</p>
                 <p className="text-2xl text-white" style={{ fontFamily: 'var(--font-secondary)' }}>
-                  {publishedProjects.filter(p => p.status === 'Activo').length}
+                  {projects.filter(p => p.status === 'Activo').length}
                 </p>
               </div>
             </div>
@@ -113,7 +155,7 @@ export function ProjectsPage() {
               <div>
                 <p className="text-sm text-white/60">Total Aplicantes</p>
                 <p className="text-2xl text-white" style={{ fontFamily: 'var(--font-secondary)' }}>
-                  {publishedProjects.reduce((sum, p) => sum + p.applicants, 0)}
+                  {projects.reduce((sum, p) => sum + p.applicants, 0)}
                 </p>
               </div>
             </div>
@@ -127,7 +169,7 @@ export function ProjectsPage() {
               <div>
                 <p className="text-sm text-white/60">En Revisión</p>
                 <p className="text-2xl text-white" style={{ fontFamily: 'var(--font-secondary)' }}>
-                  {publishedProjects.filter(p => p.status === 'En Revisión').length}
+                  {projects.filter(p => p.status === 'En Revisión').length}
                 </p>
               </div>
             </div>
@@ -141,7 +183,7 @@ export function ProjectsPage() {
           </h2>
 
           <div className="space-y-6">
-            {publishedProjects.map((project, index) => (
+            {projects.map((project, index) => (
               <motion.div
                 key={project.id}
                 initial={{ opacity: 0, y: 20 }}

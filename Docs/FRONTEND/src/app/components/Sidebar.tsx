@@ -1,17 +1,35 @@
-import { Home, Search, Users, MessageSquare, Briefcase, TrendingUp } from 'lucide-react';
+import { Home, Search, Users, MessageSquare, Briefcase, TrendingUp, Handshake, SearchCode } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link, useLocation } from 'react-router';
+import { useAuth } from '../context/AuthContext';
 
 export function Sidebar() {
   const location = useLocation();
+  const { profile } = useAuth();
+  const isConsultant = profile?.user_type === 'CONSULTOR';
 
   const navItems = [
     { id: 'home', path: '/', icon: Home, label: 'Inicio' },
-    { id: 'search', path: '/explorar', icon: Search, label: 'Explorar' },
-    { id: 'network', path: '/red', icon: Users, label: 'Mi Red' },
-    { id: 'projects', path: '/proyectos', icon: Briefcase, label: 'Proyectos' },
+    { 
+      id: 'search', 
+      path: '/explorar', 
+      icon: isConsultant ? SearchCode : Search, 
+      label: isConsultant ? 'Buscar Desafíos' : 'Explorar Talento' 
+    },
+    { 
+      id: 'network', 
+      path: '/red', 
+      icon: isConsultant ? Handshake : Users, 
+      label: isConsultant ? 'Comunidad' : 'Mi Red' 
+    },
+    { 
+      id: 'projects', 
+      path: '/proyectos', 
+      icon: Briefcase, 
+      label: isConsultant ? 'Mis Postulaciones' : 'Proyectos Activos' 
+    },
     { id: 'messages', path: '/mensajes', icon: MessageSquare, label: 'Mensajes' },
-    { id: 'analytics', path: '/analytics', icon: TrendingUp, label: 'Analytics' },
+    ...(!isConsultant ? [{ id: 'analytics', path: '/analytics', icon: TrendingUp, label: 'Analytics' }] : [])
   ];
 
   return (
