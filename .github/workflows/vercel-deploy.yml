@@ -1,9 +1,6 @@
 name: Vercel Deploy
 
-on:
-  push:
-    branches:
-      - "**"
+on: push
 
 permissions:
   contents: read
