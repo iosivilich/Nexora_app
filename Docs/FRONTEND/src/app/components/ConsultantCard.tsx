@@ -8,8 +8,8 @@ interface ConsultantCardProps {
   location: string;
   rating: number;
   projects: number;
-  experience: number;
-  age: number;
+  experience?: number;
+  age?: number;
   expertise: string[];
   image: string;
   verified?: boolean;
@@ -76,12 +76,16 @@ export function ConsultantCard({
           </div>
           <div className="flex items-center gap-1 text-white/60">
             <Briefcase className="w-4 h-4" />
-            <span className="text-sm">{experience}a exp</span>
+            <span className="text-sm">
+              {typeof experience === 'number' ? `${experience}a exp` : `${projects} proyectos`}
+            </span>
           </div>
-          <div className="flex items-center gap-1 text-white/50">
-            <User className="w-4 h-4" />
-            <span className="text-sm">{age} años</span>
-          </div>
+          {typeof age === 'number' && (
+            <div className="flex items-center gap-1 text-white/50">
+              <User className="w-4 h-4" />
+              <span className="text-sm">{age} años</span>
+            </div>
+          )}
         </div>
 
         {/* Expertise Tags */}
