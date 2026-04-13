@@ -1,120 +1,76 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Filter, SlidersHorizontal, ChevronDown, X, Award, MapPin, Briefcase, Star, User, Calendar, CheckCircle2 } from 'lucide-react';
+import {
+  Search,
+  Filter,
+  SlidersHorizontal,
+  ChevronDown,
+  X,
+  Award,
+  MapPin,
+  Briefcase,
+  Star,
+  User,
+  CheckCircle2,
+} from 'lucide-react';
 import { GlassCard } from '../components/GlassCard';
 import { ConsultantCard } from '../components/ConsultantCard';
-
-const allConsultants = [
-  {
-    name: 'María González',
-    role: 'Consultora en Transformación Digital',
-    location: 'Madrid, España',
-    city: 'Madrid',
-    rating: 4.9,
-    projects: 47,
-    experience: 12,
-    age: 38,
-    expertise: ['Digital', 'Estrategia', 'Innovación', 'Project Management'],
-    image: 'https://images.unsplash.com/photo-1613473350016-1fe047d6d360?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmZW1hbGUlMjBleGVjdXRpdmUlMjBwb3J0cmFpdHxlbnwxfHx8fDE3NzMzODQyMDh8MA&ixlib=rb-4.1.0&q=80&w=1080',
-    verified: true,
-    bio: 'Experta en guiar empresas a través de su transformación digital con un enfoque en la eficiencia operativa y la experiencia del cliente.',
-  },
-  {
-    name: 'Carlos Mendoza',
-    role: 'Experto en Gestión de Cambio',
-    location: 'Barcelona, España',
-    city: 'Barcelona',
-    rating: 4.8,
-    projects: 35,
-    experience: 15,
-    age: 42,
-    expertise: ['Cambio', 'Liderazgo', 'Cultura', 'Agile'],
-    image: 'https://images.unsplash.com/photo-1530281834572-02d15fa61f64?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtYWxlJTIwYnVzaW5lc3MlMjBwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdHxlbnwxfHx8fDE3NzMzNTQxMjR8MA&ixlib=rb-4.1.0&q=80&w=1080',
-    verified: true,
-    bio: 'Apasionado por transformar culturas organizacionales y capacitar líderes para navegar en entornos de constante cambio.',
-  },
-  {
-    name: 'Ana Chen',
-    role: 'Consultora en Estrategia Empresarial',
-    location: 'Valencia, España',
-    city: 'Valencia',
-    rating: 5.0,
-    projects: 62,
-    experience: 18,
-    age: 45,
-    expertise: ['Estrategia', 'Growth', 'M&A', 'Cloud Computing'],
-    image: 'https://images.unsplash.com/photo-1758369636875-60b3dcb76366?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhc2lhbiUyMGJ1c2luZXNzd29tYW4lMjBwcm9mZXNzaW9uYWx8ZW58MXx8fHwxNzczMzQwMDEyfDA&ixlib=rb-4.1.0&q=80&w=1080',
-    verified: true,
-    bio: 'Estratega de negocios con amplia experiencia en fusiones, adquisiciones y planes de crecimiento exponencial para startups tecnológicas.',
-  },
-  {
-    name: 'Roberto Silva',
-    role: 'Consultor en Operaciones',
-    location: 'Lisboa, Portugal',
-    city: 'Lisboa',
-    rating: 4.7,
-    projects: 29,
-    experience: 8,
-    age: 34,
-    expertise: ['Operaciones', 'Lean', 'Eficiencia', 'Data Science'],
-    image: 'https://images.unsplash.com/photo-1769839271768-aee5469799ee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBjb25zdWx0YW50JTIwYnVzaW5lc3MlMjBtZWV0aW5nfGVufDF8fHx8MTc3MzQzMzczNHww&ixlib=rb-4.1.0&q=80&w=1080',
-    verified: false,
-    bio: 'Especialista en optimización de procesos operativos mediante metodologías lean y análisis de datos avanzado.',
-  },
-  {
-    name: 'Diego Ramírez',
-    role: 'Consultor en Marketing Digital',
-    location: 'Sevilla, España',
-    city: 'Sevilla',
-    rating: 4.9,
-    projects: 41,
-    experience: 10,
-    age: 32,
-    expertise: ['Marketing', 'Digital', 'SEO', 'Artificial Intelligence'],
-    image: 'https://images.unsplash.com/photo-1742569184536-77ff9ae46c99?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoaXNwYW5pYyUyMG1hbGUlMjBjb25zdWx0YW50JTIwcHJvZmVzc2lvbmFsfGVufDF8fHx8MTc3NDAzNDE4OHww&ixlib=rb-4.1.0&q=80&w=1080',
-    verified: true,
-    bio: 'Experto en estrategias de marketing impulsadas por IA, enfocado en maximizar el ROI y la visibilidad orgánica en buscadores.',
-  },
-];
-
-const categories = [
-  'Todos',
-  'Artificial Intelligence',
-  'Data Science',
-  'Cyber Security',
-  'Blockchain',
-  'Cloud Computing',
-  'Digital Marketing',
-  'Project Management',
-  'Innovation Strategy',
-  'Digital Transformation',
-  'Agile Coaching'
-];
-
-const cities = ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Málaga', 'Lisboa'];
+import { fetchConsultants } from '../../lib/api';
+import type { ConsultantDirectoryItem } from '../../lib/backend-types';
 
 export function ExplorePage() {
+  const [consultants, setConsultants] = useState<ConsultantDirectoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedConsultant, setSelectedConsultant] = useState<any>(null);
-  
-  // Advanced Filter States
+  const [selectedConsultant, setSelectedConsultant] = useState<ConsultantDirectoryItem | null>(null);
   const [minRating, setMinRating] = useState(0);
   const [minExperience, setMinExperience] = useState(0);
   const [maxAge, setMaxAge] = useState(100);
   const [minProjects, setMinProjects] = useState(0);
   const [selectedCity, setSelectedCity] = useState('Todas');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredConsultants = allConsultants.filter((consultant) => {
+  useEffect(() => {
+    let active = true;
+
+    fetchConsultants()
+      .then((response) => {
+        if (active) {
+          setConsultants(response.items);
+        }
+      })
+      .catch((fetchError) => {
+        if (active) {
+          setError(fetchError instanceof Error ? fetchError.message : 'No pudimos cargar los consultores.');
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const categories = ['Todos', ...new Set(consultants.flatMap((consultant) => consultant.expertise))];
+  const cities = [...new Set(consultants.map((consultant) => consultant.city))];
+
+  const filteredConsultants = consultants.filter((consultant) => {
     const matchesSearch =
       consultant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       consultant.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      consultant.expertise.some((exp) => exp.toLowerCase().includes(searchTerm.toLowerCase()));
+      consultant.expertise.some((expertise) =>
+        expertise.toLowerCase().includes(searchTerm.toLowerCase()),
+      );
 
     const matchesCategory =
       selectedCategory === 'Todos' ||
-      consultant.expertise.some((exp) => exp.includes(selectedCategory));
+      consultant.expertise.some((expertise) => expertise.includes(selectedCategory));
 
     const matchesRating = consultant.rating >= minRating;
     const matchesExperience = consultant.experience >= minExperience;
@@ -122,7 +78,15 @@ export function ExplorePage() {
     const matchesProjects = consultant.projects >= minProjects;
     const matchesCity = selectedCity === 'Todas' || consultant.city === selectedCity;
 
-    return matchesSearch && matchesCategory && matchesRating && matchesExperience && matchesAge && matchesProjects && matchesCity;
+    return (
+      matchesSearch &&
+      matchesCategory &&
+      matchesRating &&
+      matchesExperience &&
+      matchesAge &&
+      matchesProjects &&
+      matchesCity
+    );
   });
 
   return (
@@ -132,7 +96,6 @@ export function ExplorePage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl lg:text-5xl text-white mb-3" style={{ fontFamily: 'var(--font-secondary)' }}>
             Explorar Consultores
@@ -140,46 +103,45 @@ export function ExplorePage() {
           <p className="text-lg text-white/70">
             Encuentra al experto perfecto para tu proyecto
           </p>
+          <p className="text-sm text-[#9CC2FF] mt-2">
+            Directorio sincronizado con los 5 consultores demo disponibles en Supabase.
+          </p>
         </div>
 
-        {/* Search and Filters */}
         <GlassCard className="p-6 mb-8">
           <div className="flex flex-col lg:flex-row gap-4 mb-6">
-            {/* Search Bar */}
             <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
               <input
                 type="text"
                 placeholder="Buscar por nombre, especialidad o habilidades..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(event) => setSearchTerm(event.target.value)}
                 className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-[#2563EB] transition-all"
               />
             </div>
 
-            {/* Category Dropdown */}
             <div className="relative min-w-[200px]">
               <select
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+                onChange={(event) => setSelectedCategory(event.target.value)}
                 className="w-full pl-4 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-white appearance-none focus:outline-none focus:border-[#2563EB] transition-all cursor-pointer"
               >
-                {categories.map((cat) => (
-                  <option key={cat} value={cat} className="bg-[#0A1F44]">
-                    {cat}
+                {categories.map((category) => (
+                  <option key={category} value={category} className="bg-[#0A1F44]">
+                    {category}
                   </option>
                 ))}
               </select>
               <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 pointer-events-none" />
             </div>
 
-            {/* Filter Toggle Button */}
-            <button 
+            <button
               onClick={() => setShowFilters(!showFilters)}
               className={`flex items-center gap-2 px-6 py-3 border rounded-xl transition-all ${
-                showFilters 
-                ? 'bg-[#2563EB] border-[#2563EB] text-white shadow-lg shadow-[#2563EB]/30' 
-                : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
+                showFilters
+                  ? 'bg-[#2563EB] border-[#2563EB] text-white shadow-lg shadow-[#2563EB]/30'
+                  : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
               }`}
             >
               <SlidersHorizontal className="w-5 h-5" />
@@ -187,7 +149,6 @@ export function ExplorePage() {
             </button>
           </div>
 
-          {/* Advanced Filters Drawer */}
           <AnimatePresence>
             {showFilters && (
               <motion.div
@@ -198,62 +159,62 @@ export function ExplorePage() {
                 className="overflow-hidden"
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-8 pb-4 border-t border-white/10 mt-6">
-                  {/* Rating Filter */}
                   <div className="space-y-3">
                     <label className="text-sm font-medium text-white/60">Rating Mínimo</label>
                     <div className="flex gap-2">
-                      {[3, 3.5, 4, 4.5, 5].map((r) => (
+                      {[3, 3.5, 4, 4.5, 5].map((rating) => (
                         <button
-                          key={r}
-                          onClick={() => setMinRating(r === minRating ? 0 : r)}
+                          key={rating}
+                          onClick={() => setMinRating(rating === minRating ? 0 : rating)}
                           className={`flex-1 py-2 rounded-lg border transition-all text-sm ${
-                            minRating === r 
-                            ? 'bg-[#2563EB]/20 border-[#2563EB] text-[#2563EB]' 
-                            : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+                            minRating === rating
+                              ? 'bg-[#2563EB]/20 border-[#2563EB] text-[#2563EB]'
+                              : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
                           }`}
                         >
-                          {r}+ ⭐
+                          {rating}+ ⭐
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* Experience Filter */}
                   <div className="space-y-3">
                     <label className="text-sm font-medium text-white/60">Años de Experiencia</label>
                     <div className="flex gap-2">
-                      {[2, 5, 10, 15].map((exp) => (
+                      {[2, 5, 10, 15].map((experience) => (
                         <button
-                          key={exp}
-                          onClick={() => setMinExperience(exp === minExperience ? 0 : exp)}
+                          key={experience}
+                          onClick={() => setMinExperience(experience === minExperience ? 0 : experience)}
                           className={`flex-1 py-2 rounded-lg border transition-all text-sm ${
-                            minExperience === exp 
-                            ? 'bg-[#2563EB]/20 border-[#2563EB] text-[#2563EB]' 
-                            : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+                            minExperience === experience
+                              ? 'bg-[#2563EB]/20 border-[#2563EB] text-[#2563EB]'
+                              : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
                           }`}
                         >
-                          {exp}+ años
+                          {experience}+ años
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* City Filter */}
                   <div className="space-y-3">
                     <label className="text-sm font-medium text-white/60">Ciudad de Residencia</label>
                     <select
                       value={selectedCity}
-                      onChange={(e) => setSelectedCity(e.target.value)}
+                      onChange={(event) => setSelectedCity(event.target.value)}
                       className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white appearance-none focus:outline-none focus:border-[#2563EB]"
                     >
-                      <option value="Todas" className="bg-[#0A1F44]">Todas las ciudades</option>
-                      {cities.map(city => (
-                        <option key={city} value={city} className="bg-[#0A1F44]">{city}</option>
+                      <option value="Todas" className="bg-[#0A1F44]">
+                        Todas las ciudades
+                      </option>
+                      {cities.map((city) => (
+                        <option key={city} value={city} className="bg-[#0A1F44]">
+                          {city}
+                        </option>
                       ))}
                     </select>
                   </div>
 
-                  {/* Projects Filter */}
                   <div className="space-y-3">
                     <label className="text-sm font-medium text-white/60">Proyectos Realizados</label>
                     <input
@@ -262,7 +223,7 @@ export function ExplorePage() {
                       max="100"
                       step="5"
                       value={minProjects}
-                      onChange={(e) => setMinProjects(Number(e.target.value))}
+                      onChange={(event) => setMinProjects(Number(event.target.value))}
                       className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#2563EB]"
                     />
                     <div className="flex justify-between text-xs text-white/40">
@@ -272,7 +233,6 @@ export function ExplorePage() {
                     </div>
                   </div>
 
-                  {/* Age Filter */}
                   <div className="space-y-3">
                     <label className="text-sm font-medium text-white/60">Edad Máxima</label>
                     <input
@@ -280,7 +240,7 @@ export function ExplorePage() {
                       min="20"
                       max="70"
                       value={maxAge}
-                      onChange={(e) => setMaxAge(Number(e.target.value))}
+                      onChange={(event) => setMaxAge(Number(event.target.value))}
                       className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#2563EB]"
                     />
                     <div className="flex justify-between text-xs text-white/40">
@@ -290,7 +250,6 @@ export function ExplorePage() {
                     </div>
                   </div>
 
-                  {/* Reset Button */}
                   <div className="flex items-end">
                     <button
                       onClick={() => {
@@ -311,41 +270,44 @@ export function ExplorePage() {
           </AnimatePresence>
         </GlassCard>
 
-        {/* Results Count */}
+        {error && (
+          <GlassCard className="p-6 mb-6 border-red-400/20">
+            <p className="text-red-300">{error}</p>
+          </GlassCard>
+        )}
+
         <div className="mb-6 flex justify-between items-center">
           <p className="text-white/60">
-            Mostrando <span className="text-white font-medium">{filteredConsultants.length}</span> consultores
+            Mostrando <span className="text-white font-medium">{loading ? '...' : filteredConsultants.length}</span> consultores
           </p>
           {selectedCategory !== 'Todos' && (
-            <button 
-              onClick={() => setSelectedCategory('Todos')}
-              className="text-sm text-[#2563EB] hover:underline"
-            >
+            <button onClick={() => setSelectedCategory('Todos')} className="text-sm text-[#2563EB] hover:underline">
               Limpiar categoría
             </button>
           )}
         </div>
 
-        {/* Consultants Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredConsultants.map((consultant, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.05 * index }}
-            >
-              <ConsultantCard 
-                {...consultant} 
-                onViewProfile={() => setSelectedConsultant(consultant)}
-              />
-            </motion.div>
-          ))}
+          {loading
+            ? Array.from({ length: 4 }).map((_, index) => (
+                <GlassCard key={index} className="p-6 h-[320px] border-white/10" hover={false}>
+                  <div className="h-full bg-white/5 rounded-2xl" />
+                </GlassCard>
+              ))
+            : filteredConsultants.map((consultant, index) => (
+                <motion.div
+                  key={consultant.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.05 * index }}
+                >
+                  <ConsultantCard {...consultant} onViewProfile={() => setSelectedConsultant(consultant)} />
+                </motion.div>
+              ))}
         </div>
 
-        {/* Empty State */}
-        {filteredConsultants.length === 0 && (
-          <GlassCard className="p-12 text-center">
+        {!loading && filteredConsultants.length === 0 && (
+          <GlassCard className="p-12 text-center mt-8">
             <Filter className="w-16 h-16 text-white/30 mx-auto mb-4" />
             <h3 className="text-xl text-white mb-2" style={{ fontFamily: 'var(--font-secondary)' }}>
               No se encontraron resultados
@@ -357,7 +319,6 @@ export function ExplorePage() {
         )}
       </motion.div>
 
-      {/* Consultant Details Modal */}
       <AnimatePresence>
         {selectedConsultant && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -374,9 +335,8 @@ export function ExplorePage() {
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="relative w-full max-w-2xl bg-[#0A1F44] border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
             >
-              {/* Modal Header/Hero */}
               <div className="relative h-48 bg-gradient-to-br from-[#2563EB] to-[#6D5EF3]">
-                <button 
+                <button
                   onClick={() => setSelectedConsultant(null)}
                   className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 rounded-full text-white transition-all z-10"
                 >
@@ -384,12 +344,15 @@ export function ExplorePage() {
                 </button>
                 <div className="absolute -bottom-12 left-8">
                   <div className="w-24 h-24 rounded-2xl overflow-hidden border-4 border-[#0A1F44] shadow-2xl">
-                    <img src={selectedConsultant.image} alt={selectedConsultant.name} className="w-full h-full object-cover" />
+                    <img
+                      src={selectedConsultant.image}
+                      alt={selectedConsultant.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </div>
               </div>
 
-              {/* Modal Content */}
               <div className="pt-16 pb-8 px-8">
                 <div className="flex justify-between items-start mb-6">
                   <div>
@@ -408,7 +371,7 @@ export function ExplorePage() {
                 </div>
 
                 <p className="text-white/70 mb-8 leading-relaxed">
-                  {selectedConsultant.bio || "Consultor especializado con amplia trayectoria en el sector bancario y tecnológico, apasionado por resolver problemas complejos."}
+                  {selectedConsultant.bio}
                 </p>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
@@ -420,7 +383,7 @@ export function ExplorePage() {
                   <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
                     <Award className="w-5 h-5 text-white/40 mb-2" />
                     <p className="text-xs text-white/40 uppercase tracking-wider">Proyectos</p>
-                    <p className="text-white font-semibold">{selectedConsultant.projects}+ Realizados</p>
+                    <p className="text-white font-semibold">{selectedConsultant.projects}+ realizados</p>
                   </div>
                   <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
                     <User className="w-5 h-5 text-white/40 mb-2" />
@@ -437,8 +400,11 @@ export function ExplorePage() {
                 <div className="mb-8">
                   <h3 className="text-sm font-semibold text-white/40 uppercase tracking-wider mb-4">Especialidades</h3>
                   <div className="flex flex-wrap gap-2">
-                    {selectedConsultant.expertise.map((skill: string, idx: number) => (
-                      <span key={idx} className="px-4 py-2 bg-[#2563EB]/10 border border-[#2563EB]/20 text-[#2563EB] rounded-xl text-sm">
+                    {selectedConsultant.expertise.map((skill, index) => (
+                      <span
+                        key={index}
+                        className="px-4 py-2 bg-[#2563EB]/10 border border-[#2563EB]/20 text-[#2563EB] rounded-xl text-sm"
+                      >
                         {skill}
                       </span>
                     ))}

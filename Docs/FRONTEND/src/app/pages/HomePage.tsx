@@ -1,77 +1,87 @@
+import { useEffect, useState } from 'react';
 import { GlassCard } from '../components/GlassCard';
 import { ConsultantCard } from '../components/ConsultantCard';
 import { StatsCard } from '../components/StatsCard';
-import { Users, Briefcase, TrendingUp, Sparkles, ArrowRight, Building2, Search, Target, Rocket, HelpCircle } from 'lucide-react';
+import {
+  Users,
+  Briefcase,
+  Sparkles,
+  ArrowRight,
+  Building2,
+  Search,
+  Target,
+  Rocket,
+  HelpCircle,
+  ShieldCheck,
+  Star,
+} from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router';
 import { useAuth } from '../context/AuthContext';
+import { fetchDashboard } from '../../lib/api';
+import type { DashboardSnapshot } from '../../lib/backend-types';
 
-const consultants = [
-  {
-    name: 'María González',
-    role: 'Consultora en Transformación Digital',
-    location: 'Madrid, España',
-    rating: 4.9,
-    projects: 47,
-    experience: 12,
-    age: 38,
-    expertise: ['Digital', 'Estrategia', 'Innovación'],
-    image: 'https://images.unsplash.com/photo-1613473350016-1fe047d6d360?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmZW1hbGUlMjBleGVjdXRpdmUlMjBwb3J0cmFpdHxlbnwxfHx8fDE3NzMzODQyMDh8MA&ixlib=rb-4.1.0&q=80&w=1080',
-    verified: true,
-  },
-  {
-    name: 'Carlos Mendoza',
-    role: 'Experto en Gestión de Cambio',
-    location: 'Barcelona, España',
-    rating: 4.8,
-    projects: 35,
-    experience: 15,
-    age: 42,
-    expertise: ['Cambio', 'Liderazgo', 'Cultura'],
-    image: 'https://images.unsplash.com/photo-1530281834572-02d15fa61f64?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtYWxlJTIwYnVzaW5lc3MlMjBwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdHxlbnwxfHx8fDE3NzMzNTQxMjR8MA&ixlib=rb-4.1.0&q=80&w=1080',
-    verified: true,
-  },
-  {
-    name: 'Ana Chen',
-    role: 'Consultora en Estrategia Empresarial',
-    location: 'Valencia, España',
-    rating: 5.0,
-    projects: 62,
-    experience: 18,
-    age: 45,
-    expertise: ['Estrategia', 'Growth', 'M&A'],
-    image: 'https://images.unsplash.com/photo-1758369636836-60b3dcb76366?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhc2lhbiUyMGJ1c2luZXNzd29tYW4lMjBwcm9mZXNzaW9uYWx8ZW58MXx8fHwxNzczMzQwMDEyfDA&ixlib=rb-4.1.0&q=80&w=1080',
-    verified: true,
-  },
-  {
-    name: 'Roberto Silva',
-    role: 'Consultor en Operaciones',
-    location: 'Lisboa, Portugal',
-    rating: 4.7,
-    projects: 29,
-    experience: 8,
-    age: 34,
-    expertise: ['Operaciones', 'Lean', 'Eficiencia'],
-    image: 'https://images.unsplash.com/photo-1769839271768-aee5469799ee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBjb25zdWx0YW50JTIwYnVzaW5lc3MlMjBtZWV0aW5nfGVufDF8fHx8MTc3MzQzMzczNHww&ixlib=rb-4.1.0&q=80&w=1080',
-    verified: false,
-  },
-];
+const emptyDashboard: DashboardSnapshot = {
+  consultantCount: 0,
+  companyCount: 0,
+  verifiedConsultantCount: 0,
+  averageRating: 0,
+  featuredConsultants: [],
+  companies: [],
+  topCities: [],
+};
 
 export function HomePage() {
   const { profile } = useAuth();
   const isConsultant = profile?.user_type === 'CONSULTOR';
+  const [dashboard, setDashboard] = useState<DashboardSnapshot>(emptyDashboard);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    fetchDashboard()
+      .then((data) => {
+        if (active) {
+          setDashboard(data);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load dashboard', error);
+      })
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {isConsultant ? <ConsultantHome /> : <CompanyHome />}
+      {isConsultant ? (
+        <ConsultantHome dashboard={dashboard} loading={loading} />
+      ) : (
+        <CompanyHome dashboard={dashboard} loading={loading} />
+      )}
     </div>
   );
 }
 
-function CompanyHome() {
+function CompanyHome({
+  dashboard,
+  loading,
+}: {
+  dashboard: DashboardSnapshot;
+  loading: boolean;
+}) {
+  const topCity = dashboard.topCities[0];
+
   return (
     <>
-      {/* Hero Section */}
       <motion.div
         className="mb-12"
         initial={{ opacity: 0, y: 20 }}
@@ -89,8 +99,11 @@ function CompanyHome() {
             que tu empresa necesita
           </span>
         </h1>
-        <p className="text-lg text-white/70 max-w-2xl mb-8">
+        <p className="text-lg text-white/70 max-w-2xl mb-4">
           Accede a una red exclusiva de consultores verificados preparados para resolver los desafíos más complejos de tu organización.
+        </p>
+        <p className="text-sm text-[#9CC2FF] mb-8">
+          Datos activos en Supabase: {dashboard.companyCount} empresas demo y {dashboard.consultantCount} consultores demo.
         </p>
         <div className="flex flex-wrap gap-4">
           <Link to="/explorar">
@@ -112,27 +125,46 @@ function CompanyHome() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              Publicar Desafío
+              Ver Desafíos
             </motion.button>
           </Link>
         </div>
       </motion.div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-        <StatsCard title="Consultores Activos" value="1,247" change="+12.5%" icon={Users} color="blue" />
-        <StatsCard title="Proyectos en Curso" value="482" change="+5.2%" icon={Briefcase} color="purple" />
-        <StatsCard title="Empresas Satisfechas" value="890" change="+18.3%" icon={Building2} color="green" />
+        <StatsCard
+          title="Consultores Activos"
+          value={loading ? '...' : String(dashboard.consultantCount)}
+          change={loading ? '...' : String(dashboard.verifiedConsultantCount)}
+          changeLabel="verificados"
+          icon={Users}
+          color="blue"
+        />
+        <StatsCard
+          title="Cobertura de Red"
+          value={loading ? '...' : String(dashboard.topCities.length || 1)}
+          change={loading ? '...' : topCity ? topCity.city : 'Sin datos'}
+          changeLabel="ciudad lider"
+          icon={Building2}
+          color="purple"
+        />
+        <StatsCard
+          title="Rating Promedio"
+          value={loading ? '...' : `${dashboard.averageRating.toFixed(1)}★`}
+          change={loading ? '...' : `${dashboard.featuredConsultants.length}`}
+          changeLabel="consultores destacados"
+          icon={Star}
+          color="green"
+        />
       </div>
 
-      {/* Featured Consultants */}
       <section className="mb-16">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-2xl lg:text-3xl text-white mb-2 font-bold" style={{ fontFamily: 'var(--font-secondary)' }}>
               Consultores Destacados
             </h2>
-            <p className="text-white/60">Talento verificado con las mejores métricas de desempeño</p>
+            <p className="text-white/60">Talento verificado cargado directamente desde Supabase</p>
           </div>
           <Link to="/explorar" className="hidden lg:flex items-center gap-2 text-[#2563EB] hover:text-[#6D5EF3] transition-colors font-bold">
             <span>Ver todos</span>
@@ -140,22 +172,32 @@ function CompanyHome() {
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {consultants.map((consultant, index) => (
-            <ConsultantCard key={index} {...consultant} />
-          ))}
+          {loading
+            ? Array.from({ length: 4 }).map((_, index) => (
+                <GlassCard key={index} className="p-6 h-[320px] border-white/10" hover={false}>
+                  <div className="h-full bg-white/5 rounded-2xl" />
+                </GlassCard>
+              ))
+            : dashboard.featuredConsultants.map((consultant) => (
+                <ConsultantCard key={consultant.id} {...consultant} />
+              ))}
         </div>
       </section>
 
-      {/* How it works */}
       <HowItWorks company />
     </>
   );
 }
 
-function ConsultantHome() {
+function ConsultantHome({
+  dashboard,
+  loading,
+}: {
+  dashboard: DashboardSnapshot;
+  loading: boolean;
+}) {
   return (
     <>
-      {/* Hero Section */}
       <motion.div
         className="mb-12"
         initial={{ opacity: 0, y: 20 }}
@@ -173,8 +215,11 @@ function ConsultantHome() {
             proyectos estratégicos
           </span>
         </h1>
-        <p className="text-lg text-white/70 max-w-2xl mb-8">
+        <p className="text-lg text-white/70 max-w-2xl mb-4">
           Accede a los desafíos más relevantes de las empresas líderes y colabora en la transformación organizacional del mercado.
+        </p>
+        <p className="text-sm text-[#D7D2FF] mb-8">
+          Red en vivo: {dashboard.companyCount} empresas demo visibles y {dashboard.consultantCount} consultores sincronizados.
         </p>
         <div className="flex flex-wrap gap-4">
           <Link to="/explorar">
@@ -187,7 +232,7 @@ function ConsultantHome() {
               whileTap={{ scale: 0.95 }}
             >
               <Search className="w-5 h-5" />
-              <span>Buscar Proyectos</span>
+              <span>Buscar Expertos</span>
             </motion.button>
           </Link>
           <Link to="/proyectos">
@@ -196,26 +241,44 @@ function ConsultantHome() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              Mis Postulaciones
+              Ver Desafíos
             </motion.button>
           </Link>
         </div>
       </motion.div>
 
-      {/* Consultant Stats - Featured Companies Metrics */}
       <section className="mb-16">
         <h2 className="text-xl text-white/80 mb-6 font-semibold uppercase tracking-widest text-sm">Oportunidades en el Mercado</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-          <StatsCard title="Empresas Destacadas" value="124" change="+10" icon={Building2} color="purple" />
-          <StatsCard title="Proyectos Abiertos" value="2,456" change="+120" icon={Briefcase} color="blue" />
-          <StatsCard title="Tasa de Aceptación" value="85%" change="+2.4%" icon={Target} color="green" />
+          <StatsCard
+            title="Empresas Activas"
+            value={loading ? '...' : String(dashboard.companyCount)}
+            change={loading ? '...' : String(dashboard.topCities.length || 1)}
+            changeLabel="ciudades demo"
+            icon={Building2}
+            color="purple"
+          />
+          <StatsCard
+            title="Consultores Verificados"
+            value={loading ? '...' : String(dashboard.verifiedConsultantCount)}
+            change={loading ? '...' : `${dashboard.averageRating.toFixed(1)}★`}
+            changeLabel="rating promedio"
+            icon={ShieldCheck}
+            color="blue"
+          />
+          <StatsCard
+            title="Talento en Red"
+            value={loading ? '...' : String(dashboard.consultantCount)}
+            change={loading ? '...' : String(dashboard.companies.length)}
+            changeLabel="empresas visibles"
+            icon={Target}
+            color="green"
+          />
         </div>
       </section>
 
-      {/* How it works for Consultants */}
       <HowItWorks />
 
-      {/* Featured Companies metrics or categories */}
       <section className="mt-16 bg-white/5 border border-white/10 rounded-3xl p-8 lg:p-12 relative overflow-hidden">
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
@@ -238,22 +301,22 @@ function ConsultantHome() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4 text-center">
-             <GlassCard className="p-6">
-                <p className="text-3xl font-bold text-white mb-1">50+</p>
-                <p className="text-xs text-white/40 uppercase font-bold">Empresas Top 500</p>
-             </GlassCard>
-             <GlassCard className="p-6">
-                <p className="text-3xl font-bold text-white mb-1">$45k</p>
-                <p className="text-xs text-white/40 uppercase font-bold">Ingresos Promedio</p>
-             </GlassCard>
-             <GlassCard className="p-6">
-                <p className="text-3xl font-bold text-white mb-1">24/7</p>
-                <p className="text-xs text-white/40 uppercase font-bold">Soporte Estratégico</p>
-             </GlassCard>
-             <GlassCard className="p-6 text-transparent bg-clip-text bg-gradient-to-br from-white to-white/20">
-                <p className="text-3xl font-bold mb-1">AI</p>
-                <p className="text-xs uppercase font-bold">Enabled</p>
-             </GlassCard>
+            <GlassCard className="p-6">
+              <p className="text-3xl font-bold text-white mb-1">{loading ? '...' : dashboard.companyCount}</p>
+              <p className="text-xs text-white/40 uppercase font-bold">Empresas Demo</p>
+            </GlassCard>
+            <GlassCard className="p-6">
+              <p className="text-3xl font-bold text-white mb-1">{loading ? '...' : `${dashboard.averageRating.toFixed(1)}★`}</p>
+              <p className="text-xs text-white/40 uppercase font-bold">Rating Promedio</p>
+            </GlassCard>
+            <GlassCard className="p-6">
+              <p className="text-3xl font-bold text-white mb-1">{loading ? '...' : dashboard.topCities[0]?.city ?? 'N/A'}</p>
+              <p className="text-xs text-white/40 uppercase font-bold">Ciudad Lider</p>
+            </GlassCard>
+            <GlassCard className="p-6 text-transparent bg-clip-text bg-gradient-to-br from-white to-white/20">
+              <p className="text-3xl font-bold mb-1">{loading ? '...' : dashboard.consultantCount}</p>
+              <p className="text-xs uppercase font-bold">Perfiles en Red</p>
+            </GlassCard>
           </div>
         </div>
       </section>
@@ -262,15 +325,17 @@ function ConsultantHome() {
 }
 
 function HowItWorks({ company }: { company?: boolean }) {
-  const steps = company ? [
-    { step: '01', title: 'Publica tu Desafío', description: 'Describe tus objetivos estratégicos y necesidades.' },
-    { step: '02', title: 'Selecciona Talento', description: 'Revisa perfiles verificados y conecta con los mejores.' },
-    { step: '03', title: 'Transforma', description: 'Colabora y obtén resultados tangibles para tu negocio.' },
-  ] : [
-    { step: '01', title: 'Completa tu Perfil', description: 'Muestra tu experiencia, rating y especialidad al mundo.' },
-    { step: '02', title: 'Postula a Proyectos', description: 'Encuentra los desafíos que mejor se adaptan a tu perfil.' },
-    { step: '03', title: 'Genera Valor', description: 'Ayuda a las empresas a crecer y consolida tu reputación.' },
-  ];
+  const steps = company
+    ? [
+        { step: '01', title: 'Publica tu Desafío', description: 'Describe tus objetivos estratégicos y necesidades.' },
+        { step: '02', title: 'Selecciona Talento', description: 'Revisa perfiles verificados y conecta con los mejores.' },
+        { step: '03', title: 'Transforma', description: 'Colabora y obtén resultados tangibles para tu negocio.' },
+      ]
+    : [
+        { step: '01', title: 'Completa tu Perfil', description: 'Muestra tu experiencia, rating y especialidad al mundo.' },
+        { step: '02', title: 'Postula a Proyectos', description: 'Encuentra los desafíos que mejor se adaptan a tu perfil.' },
+        { step: '03', title: 'Genera Valor', description: 'Ayuda a las empresas a crecer y consolida tu reputación.' },
+      ];
 
   return (
     <section className="mt-16">
@@ -281,10 +346,10 @@ function HowItWorks({ company }: { company?: boolean }) {
         {steps.map((item, index) => (
           <GlassCard key={index} className="p-8 text-center border-white/5 hover:border-white/20 transition-all">
             <div
-              className={`w-16 h-16 mx-auto mb-6 rounded-2xl flex items-center justify-center text-2xl text-white font-bold shadow-xl shadow-black/20`}
+              className="w-16 h-16 mx-auto mb-6 rounded-2xl flex items-center justify-center text-2xl text-white font-bold shadow-xl shadow-black/20"
               style={{
-                background: company 
-                  ? 'linear-gradient(135deg, #2563EB 0%, #6D5EF3 100%)' 
+                background: company
+                  ? 'linear-gradient(135deg, #2563EB 0%, #6D5EF3 100%)'
                   : 'linear-gradient(135deg, #6D5EF3 0%, #2563EB 100%)',
               }}
             >

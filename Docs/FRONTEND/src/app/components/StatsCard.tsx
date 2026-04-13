@@ -6,6 +6,7 @@ interface StatsCardProps {
   title: string;
   value: string;
   change: string;
+  changeLabel?: string;
   icon: LucideIcon;
   color: 'blue' | 'purple' | 'green';
 }
@@ -28,7 +29,14 @@ const colorStyles = {
   },
 };
 
-export function StatsCard({ title, value, change, icon: Icon, color }: StatsCardProps) {
+export function StatsCard({
+  title,
+  value,
+  change,
+  changeLabel = 'vs mes anterior',
+  icon: Icon,
+  color,
+}: StatsCardProps) {
   const styles = colorStyles[color];
 
   return (
@@ -65,7 +73,7 @@ export function StatsCard({ title, value, change, icon: Icon, color }: StatsCard
           >
             {change}
           </motion.span>
-          <span className="text-xs text-white/50">vs mes anterior</span>
+          <span className="text-xs text-white/50">{changeLabel}</span>
         </div>
       </div>
     </GlassCard>
