@@ -25,7 +25,8 @@ Acceso dedicado y seguro para ambas partes:
 
 ## 🛠️ Tecnologías y Arquitectura
 
-- **Frontend:** Interfaz premium, responsiva y orientada a la experiencia de usuario (UX).
+- **Frontend:** Interfaz premium en **Next.js + React**, responsiva y orientada a la experiencia de usuario (UX).
+- **Backend:** Capa `app/api` en **Next.js** para exponer endpoints internos y centralizar la lectura de datos.
 - **Base de Datos & Auth:** Integración nativa con **Supabase** para una gestión de datos escalable y segura.
 - **Inteligencia Artificial:** Soporte integrado de **Nexa AI** para búsqueda y recomendación inteligente.
 
@@ -80,6 +81,42 @@ Hemos elevado la experiencia de búsqueda en la sección de **Explorar** con nue
 - **Frontend Consolidado**: Código fuente integrado en `Docs/FRONTEND/` para una mejor gestión de activos y diseño.
 - **Limpieza de Seguridad**: Remoción de archivos sensibles (.env, .vercel) y eliminación de versiones obsoletas del diseño.
 
+## 🆕 Último Avance Técnico
+
+En la sesión más reciente consolidamos la base técnica del proyecto para que la app deje de depender de datos estáticos y quede lista para seguir creciendo sobre una arquitectura más realista.
+
+### 1. Migración Base del Frontend a Next.js ⚙️
+- El frontend quedó montado sobre **Next.js**, manteniendo la experiencia visual existente mientras se prepara una migración progresiva de rutas y vistas.
+- La estructura principal ahora aprovecha el directorio `app/` y la compatibilidad con despliegue moderno en Vercel.
+
+### 2. Backend Integrado Dentro de Next.js 🔌
+- Se implementó una capa backend con rutas internas en `Docs/FRONTEND/app/api/`.
+- Ya existen endpoints para:
+  - Consultores
+  - Empresas
+  - Dashboard
+  - Desafíos
+  - Estado y seed de datos demo
+- Esto permite que el frontend consulte datos reales sin depender de arreglos mock quemados en los componentes.
+
+### 3. Sincronización Real con Supabase 🗄️
+- La app ya refleja los datos demo existentes en Supabase:
+  - **6 empresas demo**
+  - **5 consultores demo**
+- Se conectaron las vistas principales (`Home`, `Explore`, `Network`, `Messages` y `Projects`) para consumir los endpoints internos de Next y mostrar información real de la base.
+- La lectura actual funciona con:
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- La variable `SUPABASE_SERVICE_ROLE_KEY` quedó preparada para habilitar procesos de seed o escrituras administrativas cuando se configure.
+
+### 4. Documentación Backend VIS2 🧭
+- Se añadió documentación técnica en `Docs/ARQUITECTURA/backend.md`.
+- Allí se describe:
+  - La estructura backend implementada
+  - Las tablas verificadas en Supabase
+  - El flujo actual entre frontend, rutas API y base de datos
+  - El estado de cumplimiento de la guía de backend VIS2
+
 ## 📁 Estructura del Proyecto
 ```text
 Nexora_app/
@@ -87,7 +124,7 @@ Nexora_app/
 │   ├── ARQUITECTURA/    # Tech Stack y Arquitectura.
 │   ├── BASE_DATOS/      # Esquema Supabase y Migraciones.
 │   ├── BRANDING/        # Moodboard, Colores y Tipografía.
-│   ├── FRONTEND/        # Código fuente (Vite/React) y PWA.
+│   ├── FRONTEND/        # Código fuente (Next.js/React), rutas API y PWA.
 │   ├── NEGOCIO/         # Modelo de Negocio y Flujos.
 │   └── figma-mcp-server/ # Servidor de integración Figma.
 └── README.md            # Guía principal.
@@ -103,6 +140,9 @@ Nexora_app/
 - [ ] Implementación de Notificaciones Push para mensajes nuevos.
 - [ ] Dashboard de analíticas avanzadas para empresas.
 - [ ] Sistema de validación de habilidades mediante IA.
+- [x] Backend inicial en Next.js con rutas `app/api`.
+- [x] Conexión de vistas principales a datos reales de Supabase demo.
+- [x] Migración base del frontend a Next.js.
 - [x] Filtros avanzados y perfiles detallados en la sección Explorar.
 - [x] Soporte PWA e instalación en dispositivos.
 - [x] Reorganización completa de la arquitectura del repositorio.

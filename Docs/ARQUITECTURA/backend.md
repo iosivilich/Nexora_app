@@ -25,7 +25,23 @@ Las dos variables publicas ya estan configuradas en este entorno. La `SUPABASE_S
 - `Docs/FRONTEND/app/api/dashboard/route.ts`
   GET del snapshot para Home y metricas.
 - `Docs/FRONTEND/app/api/challenges/route.ts`
-  GET de la tabla `desafio`.
+  GET y POST sobre la tabla `desafio`.
+- `Docs/FRONTEND/app/api/applications/route.ts`
+  GET y POST sobre la tabla `postulacion`.
+- `Docs/FRONTEND/app/api/profile/me/route.ts`
+  Perfil enriquecido y actualizacion de datos del usuario.
+- `Docs/FRONTEND/app/api/settings/route.ts`
+  Lectura y escritura de configuracion en `auth.user_metadata`.
+- `Docs/FRONTEND/app/api/settings/password/route.ts`
+  Cambio de contraseña via admin API de Supabase.
+- `Docs/FRONTEND/app/api/analytics/stats/route.ts`
+  Metricas reales y derivadas para el dashboard de analytics.
+- `Docs/FRONTEND/app/api/network/*`
+  Conexiones y favoritos respaldados provisionalmente por `auth.user_metadata`.
+- `Docs/FRONTEND/app/api/messages/*`
+  Conversaciones y mensajes demo persistidos por usuario en metadata.
+- `Docs/FRONTEND/app/api/appointments/route.ts`
+  Solicitudes de consultoria respaldadas en metadata.
 - `Docs/FRONTEND/app/api/demo/seed/route.ts`
   GET del estado del seed y POST para sembrar o confirmar los demos.
 
@@ -52,6 +68,7 @@ Las dos variables publicas ya estan configuradas en este entorno. La `SUPABASE_S
 2. Las rutas consultan Supabase.
 3. El backend adapta la respuesta a la forma que espera la UI.
 4. Las vistas `Home`, `Explore`, `Network`, `Messages` y `Projects` leen esos endpoints.
+5. Las rutas de `Profile`, `Settings` y `Analytics` ya tienen contrato backend listo para conectarse.
 
 ## Estado de la guia
 
@@ -60,7 +77,10 @@ Las dos variables publicas ya estan configuradas en este entorno. La `SUPABASE_S
 - Cliente admin opcional con `SUPABASE_SERVICE_ROLE_KEY`: preparado.
 - Al menos un endpoint GET funcionando: completo.
 - Al menos un endpoint POST funcionando: completo (`POST /api/demo/seed`).
-- Frontend reflejando datos reales de Supabase: completo para empresas y consultores demo.
+- Frontend reflejando datos reales de Supabase: completo para empresas, consultores demo y desafios.
+- Endpoints de negocio: completos para desafios y postulaciones.
+- Endpoints de soporte de usuario: completos para profile, settings y analytics.
+- Endpoints sociales: implementados con persistencia provisional en `auth.user_metadata`.
 - Documentacion de arquitectura backend: completa.
 
 ## Nota operativa
