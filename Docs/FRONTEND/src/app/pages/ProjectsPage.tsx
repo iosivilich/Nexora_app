@@ -1,9 +1,11 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Briefcase, Plus, Calendar, DollarSign, Users, Clock, Upload, X, Search, ArrowRight } from 'lucide-react';
 import { GlassCard } from '../components/GlassCard';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router';
+import Link from 'next/link';
 
 const publishedProjects = [
   {
@@ -84,7 +86,7 @@ export function ProjectsPage() {
             <p className="text-lg text-white/50 mb-10">
               Actualmente no tienes postulaciones activas. Explora los proyectos publicados por las mejores empresas y empieza a colaborar.
             </p>
-            <Link to="/explorar">
+            <Link href="/explorar">
               <motion.button
                 className="px-10 py-5 bg-gradient-to-r from-[#2563EB] to-[#6D5EF3] text-white rounded-2xl flex items-center justify-center gap-3 mx-auto font-bold shadow-2xl shadow-blue-900/40"
                 whileHover={{ scale: 1.05 }}

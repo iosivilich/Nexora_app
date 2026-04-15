@@ -1,3 +1,5 @@
+'use client';
+
 import { motion } from 'motion/react';
 import { Mail, MapPin, Briefcase, Calendar, Edit } from 'lucide-react';
 import { GlassCard } from '../components/GlassCard';

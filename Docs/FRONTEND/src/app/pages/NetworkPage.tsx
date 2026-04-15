@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Users, Star, UserPlus, MessageSquare } from 'lucide-react';

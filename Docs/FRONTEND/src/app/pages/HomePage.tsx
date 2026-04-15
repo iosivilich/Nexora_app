@@ -1,9 +1,11 @@
+'use client';
+
 import { GlassCard } from '../components/GlassCard';
 import { ConsultantCard } from '../components/ConsultantCard';
 import { StatsCard } from '../components/StatsCard';
 import { Users, Briefcase, TrendingUp, Sparkles, ArrowRight, Building2, Search, Target, Rocket, HelpCircle } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Link } from 'react-router';
+import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
 
 const consultants = [
@@ -93,7 +95,7 @@ function CompanyHome() {
           Accede a una red exclusiva de consultores verificados preparados para resolver los desafíos más complejos de tu organización.
         </p>
         <div className="flex flex-wrap gap-4">
-          <Link to="/explorar">
+          <Link href="/explorar">
             <motion.button
               className="px-8 py-4 rounded-xl text-white shadow-2xl shadow-[#2563EB]/50 flex items-center gap-2 font-bold"
               style={{
@@ -106,7 +108,7 @@ function CompanyHome() {
               <ArrowRight className="w-5 h-5" />
             </motion.button>
           </Link>
-          <Link to="/proyectos">
+          <Link href="/proyectos">
             <motion.button
               className="px-8 py-4 rounded-xl border border-white/20 text-white backdrop-blur-xl hover:bg-white/5 transition-colors font-bold"
               whileHover={{ scale: 1.05 }}
@@ -134,7 +136,7 @@ function CompanyHome() {
             </h2>
             <p className="text-white/60">Talento verificado con las mejores métricas de desempeño</p>
           </div>
-          <Link to="/explorar" className="hidden lg:flex items-center gap-2 text-[#2563EB] hover:text-[#6D5EF3] transition-colors font-bold">
+          <Link href="/explorar" className="hidden lg:flex items-center gap-2 text-[#2563EB] hover:text-[#6D5EF3] transition-colors font-bold">
             <span>Ver todos</span>
             <ArrowRight className="w-5 h-5" />
           </Link>
@@ -177,7 +179,7 @@ function ConsultantHome() {
           Accede a los desafíos más relevantes de las empresas líderes y colabora en la transformación organizacional del mercado.
         </p>
         <div className="flex flex-wrap gap-4">
-          <Link to="/explorar">
+          <Link href="/explorar">
             <motion.button
               className="px-8 py-4 rounded-xl text-white shadow-2xl shadow-[#6D5EF3]/50 flex items-center gap-2 font-bold"
               style={{
@@ -190,7 +192,7 @@ function ConsultantHome() {
               <span>Buscar Proyectos</span>
             </motion.button>
           </Link>
-          <Link to="/proyectos">
+          <Link href="/proyectos">
             <motion.button
               className="px-8 py-4 rounded-xl border border-white/20 text-white backdrop-blur-xl hover:bg-white/5 transition-colors font-bold"
               whileHover={{ scale: 1.05 }}

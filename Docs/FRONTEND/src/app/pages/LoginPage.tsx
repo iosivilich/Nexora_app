@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../components/ui/button';
@@ -6,7 +8,7 @@ import { Label } from '../components/ui/label';
 import { GlassCard } from '../components/GlassCard';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { Building2, Briefcase } from 'lucide-react';
 
@@ -18,14 +20,14 @@ export function LoginPage() {
   const [userType, setUserType] = useState<'EMPRESA' | 'CONSULTOR' | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user } = useAuth();
 
   useEffect(() => {
     if (user) {
-      navigate('/', { replace: true });
+      router.replace('/');
     }
-  }, [user, navigate]);
+  }, [user, router]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +63,7 @@ export function LoginPage() {
         });
         if (error) throw error;
         toast.success('¡Bienvenido de nuevo!');
-        navigate('/');
+        router.push('/');
       }
     } catch (error: any) {
       toast.error(error.message || 'Error en la autenticación');

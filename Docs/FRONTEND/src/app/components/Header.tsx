@@ -1,14 +1,17 @@
+'use client';
+
 import { Search, Bell, Menu, User, Settings, LogOut, ChevronDown, LogIn } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 
 export function Header() {
   const { user, profile, signOut, loading } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
+  const router = useRouter();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -24,7 +27,7 @@ export function Header() {
   const handleSignOut = async () => {
     await signOut();
     setShowProfileMenu(false);
-    navigate('/');
+    router.push('/');
   };
 
   return (
@@ -41,7 +44,7 @@ export function Header() {
         <div className="flex items-center justify-between h-16 lg:h-20">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <Link to="/" className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2">
               <img src="/logo.png" alt="Nexora Logo" className="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(37,99,235,0.5)]" />
               <span className="text-2xl tracking-tight text-white font-bold" style={{ fontFamily: 'var(--font-accent)' }}>
                 Nexora
@@ -91,7 +94,7 @@ export function Header() {
                       </div>
                       <div className="p-2">
                         <Link
-                          to="/perfil"
+                          href="/perfil"
                           className="flex items-center gap-3 px-4 py-3 text-white/80 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
                           onClick={() => setShowProfileMenu(false)}
                         >
@@ -99,7 +102,7 @@ export function Header() {
                           <span>Mi Perfil</span>
                         </Link>
                         <Link
-                          to="/configuracion"
+                          href="/configuracion"
                           className="flex items-center gap-3 px-4 py-3 text-white/80 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
                           onClick={() => setShowProfileMenu(false)}
                         >
@@ -122,7 +125,7 @@ export function Header() {
               </>
             ) : (
               !loading && (
-                <Link to="/login">
+                <Link href="/login">
                   <motion.button
                     className="px-6 py-2 rounded-xl text-white flex items-center gap-2 border border-white/20 hover:bg-white/10 transition-colors"
                     whileHover={{ scale: 1.05 }}

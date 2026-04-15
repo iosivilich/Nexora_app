@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Filter, SlidersHorizontal, ChevronDown, X, Award, MapPin, Briefcase, Star, User, Calendar, CheckCircle2 } from 'lucide-react';

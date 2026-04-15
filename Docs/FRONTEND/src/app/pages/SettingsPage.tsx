@@ -1,3 +1,5 @@
+'use client';
+
 import { motion } from 'motion/react';
 import { Bell, Lock, Globe, Moon, Shield, CreditCard } from 'lucide-react';
 import { GlassCard } from '../components/GlassCard';
