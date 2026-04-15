@@ -1,10 +1,13 @@
+'use client';
+
 import { Home, Search, Users, MessageSquare, Briefcase, TrendingUp, Handshake, SearchCode } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Link, useLocation } from 'react-router';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 
 export function Sidebar() {
-  const location = useLocation();
+  const pathname = usePathname();
   const { profile } = useAuth();
   const isConsultant = profile?.user_type === 'CONSULTOR';
 
@@ -41,7 +44,7 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="p-6 border-b border-white/10">
-        <Link to="/" className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3">
           <img src="/logo.png" alt="Nexora Logo" className="w-12 h-12 object-contain drop-shadow-[0_0_12px_rgba(37,99,235,0.5)]" />
           <span className="text-2xl tracking-tight text-white font-bold" style={{ fontFamily: 'var(--font-accent)' }}>
             Nexora
@@ -54,12 +57,12 @@ export function Sidebar() {
         <nav className="space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = pathname === item.path;
 
             return (
               <Link
                 key={item.id}
-                to={item.path}
+                href={item.path}
                 className="relative w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group"
               >
                 {isActive && (

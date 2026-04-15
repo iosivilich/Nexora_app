@@ -1,11 +1,13 @@
+'use client';
+
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Briefcase, Calendar, Users, Search, ArrowRight, Building2 } from 'lucide-react';
 import { GlassCard } from '../components/GlassCard';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router';
 import { fetchChallenges, fetchSeedStatus } from '../../lib/api';
 import type { ChallengeSummary, SeedStatus } from '../../lib/backend-types';
+import Link from 'next/link';
 
 const emptySeedStatus: SeedStatus = {
   companiesSeeded: 0,
@@ -89,7 +91,7 @@ export function ProjectsPage() {
               Estado demo actual: {seedStatus.companiesSeeded} empresas y {seedStatus.consultantsSeeded} consultores sincronizados.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <Link to="/explorar">
+              <Link href="/explorar">
                 <motion.button
                   className="px-10 py-5 bg-gradient-to-r from-[#2563EB] to-[#6D5EF3] text-white rounded-2xl flex items-center justify-center gap-3 mx-auto font-bold shadow-2xl shadow-blue-900/40"
                   whileHover={{ scale: 1.05 }}
@@ -99,7 +101,7 @@ export function ProjectsPage() {
                   <ArrowRight className="w-5 h-5" />
                 </motion.button>
               </Link>
-              <Link to="/">
+              <Link href="/">
                 <motion.button
                   className="px-10 py-5 border border-white/15 text-white rounded-2xl flex items-center justify-center gap-3 mx-auto font-bold hover:bg-white/5"
                   whileHover={{ scale: 1.05 }}

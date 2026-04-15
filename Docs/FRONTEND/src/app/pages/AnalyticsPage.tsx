@@ -1,3 +1,5 @@
+'use client';
+
 import { motion } from 'motion/react';
 import { TrendingUp, Users, Briefcase, Eye } from 'lucide-react';
 import { GlassCard } from '../components/GlassCard';

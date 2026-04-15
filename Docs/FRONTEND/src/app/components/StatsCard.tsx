@@ -1,3 +1,5 @@
+'use client';
+
 import { GlassCard } from './GlassCard';
 import { LucideIcon } from 'lucide-react';
 import { motion } from 'motion/react';

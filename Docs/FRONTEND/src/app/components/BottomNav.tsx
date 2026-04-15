@@ -1,9 +1,12 @@
+'use client';
+
 import { Home, Search, Users, MessageSquare, Briefcase } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Link, useLocation } from 'react-router';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export function BottomNav() {
-  const location = useLocation();
+  const pathname = usePathname();
 
   const navItems = [
     { id: 'home', path: '/', icon: Home, label: 'Inicio' },
@@ -23,12 +26,12 @@ export function BottomNav() {
       <div className="flex items-center justify-around px-2 py-3">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.path;
+          const isActive = pathname === item.path;
 
           return (
             <Link
               key={item.id}
-              to={item.path}
+              href={item.path}
               className="relative flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-colors"
             >
               {isActive && (

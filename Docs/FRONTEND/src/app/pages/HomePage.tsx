@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useState } from 'react';
 import { GlassCard } from '../components/GlassCard';
 import { ConsultantCard } from '../components/ConsultantCard';
@@ -16,7 +18,7 @@ import {
   Star,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Link } from 'react-router';
+import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
 import { fetchDashboard } from '../../lib/api';
 import type { DashboardSnapshot } from '../../lib/backend-types';
@@ -106,7 +108,7 @@ function CompanyHome({
           Datos activos en Supabase: {dashboard.companyCount} empresas demo y {dashboard.consultantCount} consultores demo.
         </p>
         <div className="flex flex-wrap gap-4">
-          <Link to="/explorar">
+          <Link href="/explorar">
             <motion.button
               className="px-8 py-4 rounded-xl text-white shadow-2xl shadow-[#2563EB]/50 flex items-center gap-2 font-bold"
               style={{
@@ -119,7 +121,7 @@ function CompanyHome({
               <ArrowRight className="w-5 h-5" />
             </motion.button>
           </Link>
-          <Link to="/proyectos">
+          <Link href="/proyectos">
             <motion.button
               className="px-8 py-4 rounded-xl border border-white/20 text-white backdrop-blur-xl hover:bg-white/5 transition-colors font-bold"
               whileHover={{ scale: 1.05 }}
@@ -166,7 +168,7 @@ function CompanyHome({
             </h2>
             <p className="text-white/60">Talento verificado cargado directamente desde Supabase</p>
           </div>
-          <Link to="/explorar" className="hidden lg:flex items-center gap-2 text-[#2563EB] hover:text-[#6D5EF3] transition-colors font-bold">
+          <Link href="/explorar" className="hidden lg:flex items-center gap-2 text-[#2563EB] hover:text-[#6D5EF3] transition-colors font-bold">
             <span>Ver todos</span>
             <ArrowRight className="w-5 h-5" />
           </Link>
@@ -222,7 +224,7 @@ function ConsultantHome({
           Red en vivo: {dashboard.companyCount} empresas demo visibles y {dashboard.consultantCount} consultores sincronizados.
         </p>
         <div className="flex flex-wrap gap-4">
-          <Link to="/explorar">
+          <Link href="/explorar">
             <motion.button
               className="px-8 py-4 rounded-xl text-white shadow-2xl shadow-[#6D5EF3]/50 flex items-center gap-2 font-bold"
               style={{
@@ -235,7 +237,7 @@ function ConsultantHome({
               <span>Buscar Expertos</span>
             </motion.button>
           </Link>
-          <Link to="/proyectos">
+          <Link href="/proyectos">
             <motion.button
               className="px-8 py-4 rounded-xl border border-white/20 text-white backdrop-blur-xl hover:bg-white/5 transition-colors font-bold"
               whileHover={{ scale: 1.05 }}

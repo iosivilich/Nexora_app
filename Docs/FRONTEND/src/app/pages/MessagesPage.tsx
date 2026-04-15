@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Search, Send, Paperclip, MoreVertical, CheckCheck } from 'lucide-react';

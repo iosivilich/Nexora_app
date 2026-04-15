@@ -1,3 +1,5 @@
+'use client';
+
 import { GlassCard } from './GlassCard';
 import { CheckCircle2, Star, MapPin, Briefcase, User } from 'lucide-react';
 import { motion } from 'motion/react';
