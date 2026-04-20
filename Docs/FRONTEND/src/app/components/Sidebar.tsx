@@ -8,8 +8,11 @@ import { useAuth } from '../context/AuthContext';
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { profile } = useAuth();
-  const isConsultant = profile?.user_type === 'CONSULTOR';
+  const { user, profile, loading: authLoading } = useAuth();
+  
+  if (authLoading) return <div className="hidden lg:flex w-72 h-full border-r border-white/10 bg-black/20" />;
+
+  const isConsultant = (profile?.user_type || user?.user_metadata?.user_type) === 'CONSULTOR';
 
   const navItems = [
     { id: 'home', path: '/', icon: Home, label: 'Inicio' },
@@ -31,8 +34,7 @@ export function Sidebar() {
       icon: Briefcase, 
       label: isConsultant ? 'Mis Postulaciones' : 'Proyectos Activos' 
     },
-    { id: 'messages', path: '/mensajes', icon: MessageSquare, label: 'Mensajes' },
-    ...(!isConsultant ? [{ id: 'analytics', path: '/analytics', icon: TrendingUp, label: 'Analytics' }] : [])
+    { id: 'messages', path: '/mensajes', icon: MessageSquare, label: 'Mensajes' }
   ];
 
   return (

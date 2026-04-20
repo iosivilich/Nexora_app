@@ -263,8 +263,8 @@ function normalizeProfile(row: ConsultantRow['profiles']) {
 
 function mapConsultant(row: ConsultantRow): ConsultantDirectoryItem {
   const profile = normalizeProfile(row.profiles);
-  const name = profile?.full_name ?? 'Consultor demo';
-  const city = profile?.city ?? 'Remoto';
+  const name = toTitleCase(profile?.full_name ?? 'Consultor demo');
+  const city = toTitleCase(profile?.city ?? 'Remoto');
 
   return {
     id: row.id,
@@ -284,8 +284,8 @@ function mapConsultant(row: ConsultantRow): ConsultantDirectoryItem {
 }
 
 function mapCompany(row: ProfileRow): CompanyDirectoryItem {
-  const name = row.full_name ?? 'Empresa demo';
-  const city = row.city ?? 'Colombia';
+  const name = toTitleCase(row.full_name ?? 'Empresa demo');
+  const city = toTitleCase(row.city ?? 'Colombia');
 
   return {
     id: row.id,
@@ -297,9 +297,12 @@ function mapCompany(row: ProfileRow): CompanyDirectoryItem {
   };
 }
 
-function toTitleCase(value: string) {
+function toTitleCase(value: string | null) {
+  if (!value) return '';
   return value
+    .trim()
     .split(/[\s_-]+/)
+    .filter(Boolean)
     .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1).toLowerCase())
     .join(' ');
 }

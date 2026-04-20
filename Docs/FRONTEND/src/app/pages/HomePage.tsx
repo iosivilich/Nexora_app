@@ -34,8 +34,8 @@ const emptyDashboard: DashboardSnapshot = {
 };
 
 export function HomePage() {
-  const { profile } = useAuth();
-  const isConsultant = profile?.user_type === 'CONSULTOR';
+  const { user, profile, loading: authLoading } = useAuth();
+  const isConsultant = (profile?.user_type || user?.user_metadata?.user_type) === 'CONSULTOR';
   const [dashboard, setDashboard] = useState<DashboardSnapshot>(emptyDashboard);
   const [loading, setLoading] = useState(true);
 
@@ -61,6 +61,14 @@ export function HomePage() {
       active = false;
     };
   }, []);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-[#2563EB] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -233,8 +241,8 @@ function ConsultantHome({
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <Search className="w-5 h-5" />
-              <span>Buscar Expertos</span>
+              <Briefcase className="w-5 h-5" />
+              <span>Buscar Desafíos</span>
             </motion.button>
           </Link>
           <Link href="/proyectos">

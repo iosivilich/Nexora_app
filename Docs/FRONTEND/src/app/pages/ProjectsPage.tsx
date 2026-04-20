@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Briefcase, Calendar, Users, Search, ArrowRight, Building2 } from 'lucide-react';
+import { Briefcase, Calendar, Users, Search, ArrowRight, Building2, User, CheckCircle2, Rocket } from 'lucide-react';
 import { GlassCard } from '../components/GlassCard';
 import { useAuth } from '../context/AuthContext';
 import { fetchChallenges, fetchSeedStatus } from '../../lib/api';
 import type { ChallengeSummary, SeedStatus } from '../../lib/backend-types';
 import Link from 'next/link';
+import { CreateProjectModal } from '../components/CreateProjectModal';
 
 const emptySeedStatus: SeedStatus = {
   companiesSeeded: 0,
@@ -36,20 +37,29 @@ function formatPublishedDate(value: string | null) {
 }
 
 export function ProjectsPage() {
-  const { profile } = useAuth();
-  const isConsultant = profile?.user_type === 'CONSULTOR';
-  const [projects, setProjects] = useState<ChallengeSummary[]>([]);
+  const { user, profile } = useAuth();
+  const isConsultant = (profile?.user_type || user?.user_metadata?.user_type) === 'CONSULTOR';
+  const [allProjects, setAllProjects] = useState<ChallengeSummary[]>([]);
   const [seedStatus, setSeedStatus] = useState<SeedStatus>(emptySeedStatus);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  useEffect(() => {
+  const myCompanyId = profile?.companyRecord?.id_empresa;
+
+  // Filter projects: Consultants see all, Companies see only theirs
+  const displayProjects = isConsultant 
+    ? allProjects 
+    : allProjects.filter(p => p.companyId === myCompanyId);
+
+  const loadData = () => {
     let active = true;
+    setLoading(true);
 
     Promise.all([fetchChallenges(), fetchSeedStatus()])
       .then(([projectsResponse, seedResponse]) => {
         if (active) {
-          setProjects(projectsResponse.items);
+          setAllProjects(projectsResponse.items);
           setSeedStatus(seedResponse);
         }
       })
@@ -67,9 +77,14 @@ export function ProjectsPage() {
     return () => {
       active = false;
     };
+  };
+
+  useEffect(() => {
+    const unsub = loadData();
+    return () => unsub();
   }, []);
 
-  if (!loading && projects.length === 0) {
+  if (!loading && displayProjects.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
@@ -82,7 +97,7 @@ export function ProjectsPage() {
               )}
             </div>
             <h2 className="text-3xl text-white mb-4 font-bold" style={{ fontFamily: 'var(--font-secondary)' }}>
-              {isConsultant ? 'Aún no hay desafíos publicados' : 'Tu empresa aún no tiene desafíos activos'}
+              {isConsultant ? 'Aún no tienes postulaciones' : 'Tu empresa aún no tiene desafíos activos'}
             </h2>
             <p className="text-lg text-white/50 mb-4">
               La tabla `desafio` ya está conectada al backend de Next.js, pero en Supabase todavía no hay registros visibles.
@@ -97,19 +112,31 @@ export function ProjectsPage() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <span>{isConsultant ? 'Explorar Consultores' : 'Explorar Talento'}</span>
+                  <span>{isConsultant ? 'Explorar Desafíos' : 'Explorar Talento'}</span>
                   <ArrowRight className="w-5 h-5" />
                 </motion.button>
               </Link>
-              <Link href="/">
+              {isConsultant ? (
+                <Link href="/">
+                  <motion.button
+                    className="px-10 py-5 border border-white/15 text-white rounded-2xl flex items-center justify-center gap-3 mx-auto font-bold hover:bg-white/5"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <span>Volver al Inicio</span>
+                  </motion.button>
+                </Link>
+              ) : (
                 <motion.button
-                  className="px-10 py-5 border border-white/15 text-white rounded-2xl flex items-center justify-center gap-3 mx-auto font-bold hover:bg-white/5"
+                  onClick={() => setIsModalOpen(true)}
+                  className="px-8 py-4 bg-white/5 border border-white/15 text-white rounded-xl flex items-center justify-center gap-3 mx-auto font-bold hover:bg-white/10 transition-all shadow-xl shadow-black/20"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <span>Volver al Inicio</span>
+                  <Rocket className="w-5 h-5 text-blue-400" />
+                  <span>Publicar Proyecto</span>
                 </motion.button>
-              </Link>
+              )}
             </div>
           </GlassCard>
         </motion.div>
@@ -130,9 +157,20 @@ export function ProjectsPage() {
               {isConsultant ? 'Desafíos del Mercado' : 'Desafíos Publicados'}
             </h1>
             <p className="text-lg text-white/70">
-              Backend conectado a Supabase a través de la ruta `/api/challenges`
+              {isConsultant ? 'Explora oportunidades estratégicas' : 'Gestiona los retos publicados por tu empresa'}
             </p>
           </div>
+          {!isConsultant && (
+            <motion.button
+              onClick={() => setIsModalOpen(true)}
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg flex items-center gap-2 font-bold shadow-lg shadow-blue-500/30 text-sm"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Rocket className="w-4 h-4" />
+              <span>Nuevo Proyecto</span>
+            </motion.button>
+          )}
         </div>
 
         {error && (
@@ -150,7 +188,7 @@ export function ProjectsPage() {
               <div>
                 <p className="text-sm text-white/60">Desafíos Activos</p>
                 <p className="text-2xl text-white" style={{ fontFamily: 'var(--font-secondary)' }}>
-                  {loading ? '...' : projects.length}
+                  {loading ? '...' : displayProjects.length}
                 </p>
               </div>
             </div>
@@ -192,7 +230,7 @@ export function ProjectsPage() {
                   <div className="h-full bg-white/5 rounded-2xl" />
                 </GlassCard>
               ))
-            : projects.map((project, index) => (
+            : displayProjects.map((project, index) => (
                 <motion.div
                   key={project.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -239,6 +277,12 @@ export function ProjectsPage() {
               ))}
         </div>
       </motion.div>
+
+      <CreateProjectModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSuccess={loadData}
+      />
     </div>
   );
 }

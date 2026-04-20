@@ -29,6 +29,14 @@ export function LoginPage() {
     }
   }, [user, router]);
 
+  const normalizeCity = (val: string) => {
+    return val
+      .trim()
+      .split(/[\s-]+/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -40,6 +48,7 @@ export function LoginPage() {
     }
 
     setIsLoading(true);
+    const normalizedCity = normalizeCity(city);
 
     try {
       if (isSignUp) {
@@ -49,7 +58,7 @@ export function LoginPage() {
           options: {
             data: {
               full_name: fullName,
-              city: city,
+              city: normalizedCity,
               user_type: userType,
             }
           }

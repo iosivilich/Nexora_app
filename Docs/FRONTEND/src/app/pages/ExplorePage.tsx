@@ -17,11 +17,16 @@ import {
 } from 'lucide-react';
 import { GlassCard } from '../components/GlassCard';
 import { ConsultantCard } from '../components/ConsultantCard';
-import { fetchConsultants } from '../../lib/api';
-import type { ConsultantDirectoryItem } from '../../lib/backend-types';
+import { useAuth } from '../context/AuthContext';
+import { fetchConsultants, fetchChallenges } from '../../lib/api';
+import type { ConsultantDirectoryItem, ChallengeSummary } from '../../lib/backend-types';
 
 export function ExplorePage() {
+  const { user, profile } = useAuth();
+  const isConsultant = (profile?.user_type || user?.user_metadata?.user_type) === 'CONSULTOR';
+
   const [consultants, setConsultants] = useState<ConsultantDirectoryItem[]>([]);
+  const [challenges, setChallenges] = useState<ChallengeSummary[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [showFilters, setShowFilters] = useState(false);
@@ -37,30 +42,44 @@ export function ExplorePage() {
   useEffect(() => {
     let active = true;
 
-    fetchConsultants()
-      .then((response) => {
-        if (active) {
-          setConsultants(response.items);
-        }
-      })
-      .catch((fetchError) => {
-        if (active) {
-          setError(fetchError instanceof Error ? fetchError.message : 'No pudimos cargar los consultores.');
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
-      });
+    if (isConsultant) {
+      fetchChallenges()
+        .then((response) => {
+          if (active) setChallenges(response.items);
+        })
+        .catch((err) => {
+          if (active) setError(err.message || 'No pudimos cargar los desafíos.');
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    } else {
+      fetchConsultants()
+        .then((response) => {
+          if (active) setConsultants(response.items);
+        })
+        .catch((fetchError) => {
+          if (active) {
+            setError(fetchError instanceof Error ? fetchError.message : 'No pudimos cargar los consultores.');
+          }
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    }
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [isConsultant]);
 
-  const categories = ['Todos', ...new Set(consultants.flatMap((consultant) => consultant.expertise))];
-  const cities = [...new Set(consultants.map((consultant) => consultant.city))];
+  const categories = isConsultant 
+    ? ['Todos', ...new Set(challenges.map(c => c.specialty))]
+    : ['Todos', ...new Set(consultants.flatMap((consultant) => consultant.expertise))];
+  
+  const cities = isConsultant
+    ? [] // Desafíos no tienen ciudad en el resumen actual
+    : [...new Set(consultants.map((consultant) => consultant.city))];
 
   const filteredConsultants = consultants.filter((consultant) => {
     const matchesSearch =
@@ -91,6 +110,18 @@ export function ExplorePage() {
     );
   });
 
+  const filteredChallenges = challenges.filter(challenge => {
+    const matchesSearch = 
+      challenge.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      challenge.description.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCategory = 
+      selectedCategory === 'Todos' || 
+      challenge.specialty === selectedCategory;
+    
+    return matchesSearch && matchesCategory;
+  });
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <motion.div
@@ -100,13 +131,17 @@ export function ExplorePage() {
       >
         <div className="mb-8">
           <h1 className="text-4xl lg:text-5xl text-white mb-3" style={{ fontFamily: 'var(--font-secondary)' }}>
-            Explorar Consultores
+            {isConsultant ? 'Buscar Desafíos' : 'Explorar Consultores'}
           </h1>
           <p className="text-lg text-white/70">
-            Encuentra al experto perfecto para tu proyecto
+            {isConsultant 
+              ? 'Encuentra las mejores oportunidades para tu perfil' 
+              : 'Encuentra al experto perfecto para tu proyecto'}
           </p>
           <p className="text-sm text-[#9CC2FF] mt-2">
-            Directorio sincronizado con los 5 consultores demo disponibles en Supabase.
+            {isConsultant 
+              ? 'Listado de retos estratégicos publicados por empresas.' 
+              : 'Directorio sincronizado con los consultores verificados.'}
           </p>
         </div>
 
@@ -280,7 +315,7 @@ export function ExplorePage() {
 
         <div className="mb-6 flex justify-between items-center">
           <p className="text-white/60">
-            Mostrando <span className="text-white font-medium">{loading ? '...' : filteredConsultants.length}</span> consultores
+            Mostrando <span className="text-white font-medium">{loading ? '...' : (isConsultant ? filteredChallenges.length : filteredConsultants.length)}</span> {isConsultant ? 'desafíos' : 'consultores'}
           </p>
           {selectedCategory !== 'Todos' && (
             <button onClick={() => setSelectedCategory('Todos')} className="text-sm text-[#2563EB] hover:underline">
@@ -296,7 +331,38 @@ export function ExplorePage() {
                   <div className="h-full bg-white/5 rounded-2xl" />
                 </GlassCard>
               ))
-            : filteredConsultants.map((consultant, index) => (
+            : isConsultant 
+              ? filteredChallenges.map((challenge, index) => (
+                <motion.div
+                  key={challenge.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.05 * index }}
+                >
+                  <GlassCard className="p-6 h-full flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                          <Briefcase className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">{challenge.specialty}</span>
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-2 leading-tight">{challenge.title}</h3>
+                      <p className="text-sm text-white/60 line-clamp-3 mb-6">{challenge.description}</p>
+                    </div>
+                    <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                      <div className="text-xs text-white/40">
+                        <p className="font-semibold text-white/60">{challenge.mode}</p>
+                        <p>{challenge.status}</p>
+                      </div>
+                      <button className="px-4 py-2 bg-blue-600/20 text-blue-400 rounded-lg text-xs font-bold hover:bg-blue-600/30 transition-all border border-blue-600/30">
+                        Postular
+                      </button>
+                    </div>
+                  </GlassCard>
+                </motion.div>
+              ))
+              : filteredConsultants.map((consultant, index) => (
                 <motion.div
                   key={consultant.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -305,10 +371,11 @@ export function ExplorePage() {
                 >
                   <ConsultantCard {...consultant} onViewProfile={() => setSelectedConsultant(consultant)} />
                 </motion.div>
-              ))}
+              ))
+          }
         </div>
 
-        {!loading && filteredConsultants.length === 0 && (
+        {!loading && (isConsultant ? filteredChallenges.length === 0 : filteredConsultants.length === 0) && (
           <GlassCard className="p-12 text-center mt-8">
             <Filter className="w-16 h-16 text-white/30 mx-auto mb-4" />
             <h3 className="text-xl text-white mb-2" style={{ fontFamily: 'var(--font-secondary)' }}>
@@ -335,16 +402,16 @@ export function ExplorePage() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-2xl bg-[#0A1F44] border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
+              className="relative w-full max-w-2xl max-h-[80vh] bg-[#0A1F44] border border-white/10 rounded-2xl sm:rounded-3xl overflow-y-auto shadow-2xl custom-scrollbar"
             >
-              <div className="relative h-48 bg-gradient-to-br from-[#2563EB] to-[#6D5EF3]">
+              <div className="relative h-36 bg-gradient-to-br from-[#2563EB] to-[#6D5EF3]">
                 <button
                   onClick={() => setSelectedConsultant(null)}
                   className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 rounded-full text-white transition-all z-10"
                 >
                   <X className="w-6 h-6" />
                 </button>
-                <div className="absolute -bottom-12 left-8">
+                <div className="absolute -bottom-12 left-8 mt-[-36px]">
                   <div className="w-24 h-24 rounded-2xl overflow-hidden border-4 border-[#0A1F44] shadow-2xl">
                     <img
                       src={selectedConsultant.image}

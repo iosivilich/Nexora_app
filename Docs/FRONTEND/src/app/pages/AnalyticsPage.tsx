@@ -4,7 +4,22 @@ import { motion } from 'motion/react';
 import { TrendingUp, Users, Briefcase, Eye } from 'lucide-react';
 import { GlassCard } from '../components/GlassCard';
 
+import { useAuth } from '../context/AuthContext';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
 export function AnalyticsPage() {
+  const { user, profile, loading } = useAuth();
+  const router = useRouter();
+  const isConsultant = (profile?.user_type || user?.user_metadata?.user_type) === 'CONSULTOR';
+
+  useEffect(() => {
+    if (!loading) {
+      router.push('/');
+    }
+  }, [loading, router]);
+  
+  if (loading) return null;
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <motion.div
