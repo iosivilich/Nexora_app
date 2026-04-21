@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createChallenge, listChallenges } from '../../../src/lib/backend-data';
+import { createChallenge, getAuthenticatedContext, listChallenges } from '../../../src/lib/backend-data';
 
 function toNumber(value: string | null) {
   if (!value) {
@@ -13,8 +13,24 @@ function toNumber(value: string | null) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const scope = searchParams.get('scope');
+    let idEmpresa = toNumber(searchParams.get('idEmpresa'));
+
+    if (scope === 'mine') {
+      const context = await getAuthenticatedContext();
+
+      if (context.profile.user_type !== 'EMPRESA' || !context.companyRecord?.id_empresa) {
+        return NextResponse.json(
+          { error: 'Solo una empresa vinculada puede consultar sus propios desafíos.' },
+          { status: 403 },
+        );
+      }
+
+      idEmpresa = context.companyRecord.id_empresa;
+    }
+
     const items = await listChallenges({
-      idEmpresa: toNumber(searchParams.get('idEmpresa')),
+      idEmpresa,
       status: searchParams.get('status'),
       mode: searchParams.get('mode'),
       limit: toNumber(searchParams.get('limit')),
@@ -38,7 +54,6 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
-      idEmpresa?: number;
       title?: string;
       description?: string;
       specialty?: string;
@@ -47,15 +62,23 @@ export async function POST(request: Request) {
       status?: string | null;
     };
 
-    if (!body.idEmpresa || !body.title?.trim() || !body.description?.trim() || !body.specialty?.trim()) {
+    if (!body.title?.trim() || !body.description?.trim() || !body.specialty?.trim()) {
       return NextResponse.json(
-        { error: 'idEmpresa, title, description y specialty son obligatorios.' },
+        { error: 'title, description y specialty son obligatorios.' },
         { status: 400 },
       );
     }
 
+    const context = await getAuthenticatedContext();
+    if (context.profile.user_type !== 'EMPRESA' || !context.companyRecord?.id_empresa) {
+      return NextResponse.json(
+        { error: 'Solo una empresa vinculada puede crear desafíos.' },
+        { status: 403 },
+      );
+    }
+
     const item = await createChallenge({
-      idEmpresa: body.idEmpresa,
+      idEmpresa: context.companyRecord.id_empresa,
       title: body.title,
       description: body.description,
       specialty: body.specialty,
@@ -69,8 +92,13 @@ export async function POST(request: Request) {
     console.error('POST /api/challenges failed', error);
 
     return NextResponse.json(
-      { error: 'No pudimos crear el desafio.' },
-      { status: 500 },
+      { error: error instanceof Error ? error.message : 'No pudimos crear el desafio.' },
+      {
+        status:
+          typeof error === 'object' && error && 'status' in error && typeof error.status === 'number'
+            ? error.status
+            : 500,
+      },
     );
   }
 }

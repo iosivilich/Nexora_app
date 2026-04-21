@@ -117,9 +117,45 @@ En la sesión más reciente consolidamos la base técnica del proyecto para que 
   - El flujo actual entre frontend, rutas API y base de datos
   - El estado de cumplimiento de la guía de backend VIS2
 
+## 🗄️ Estado de Migraciones Supabase
+
+El proyecto ya quedó alineado para trabajar con migraciones reales en Supabase:
+
+- El historial compatible con el CLI vive en `supabase/migrations/`.
+- La copia documental y de referencia técnica vive en `Docs/BASE_DATOS/migrations/`.
+- El esquema remoto ya tiene aplicada la migración de social/settings/mensajería/citas:
+  - `20260325192956_create_auth_profiles_trigger.sql`
+  - `20260420214000_real_social_tables.sql`
+
+### Qué agregó la migración `20260420214000`
+- Columnas persistentes `empresa_id` y `consultor_id` en `public.profiles`.
+- Tablas reales para:
+  - `public.user_settings`
+  - `public.favorites`
+  - `public.connections`
+  - `public.conversations`
+  - `public.direct_messages`
+  - `public.appointments`
+- Policies RLS y backfill inicial desde metadata legacy hacia las tablas nuevas.
+
+### Cómo ejecutar futuras migraciones
+- En redes IPv4, usa la cadena de `Session Pooler` desde `Connect` en Supabase.
+- La conexión `Direct connection` de este proyecto puede resolver solo por IPv6, así que desde algunos entornos no funcionará.
+- Flujo recomendado:
+  1. Crear la migración en `supabase/migrations/` con timestamp completo.
+  2. Si aplica, reflejar una copia en `Docs/BASE_DATOS/migrations/`.
+  3. Ejecutar con `supabase db push --db-url "<session-pooler-url>"` o `supabase db query -f ...` si hay que correr SQL directo.
+
+### Nota de seguridad pendiente
+- Supabase reporta RLS deshabilitado en `public.calificacion`, `public.contrato`, `public.desafio` y `public.postulacion`.
+- No se activó automáticamente para evitar bloquear acceso legítimo sin policies correctas.
+- Antes de habilitar RLS en esas tablas hay que definir permisos explícitos para empresas, consultores y lecturas públicas según el flujo real de la app.
+
 ## 📁 Estructura del Proyecto
 ```text
 Nexora_app/
+├── supabase/
+│   └── migrations/      # Historial compatible con Supabase CLI.
 ├── Docs/
 │   ├── ARQUITECTURA/    # Tech Stack y Arquitectura.
 │   ├── BASE_DATOS/      # Esquema Supabase y Migraciones.

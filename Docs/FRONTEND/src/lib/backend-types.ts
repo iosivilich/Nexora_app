@@ -64,13 +64,16 @@ export interface SeedStatus {
 export interface ListResponse<T> {
   items: T[];
   count: number;
-  source: 'supabase' | 'auth-metadata' | 'derived-demo';
+  source: 'supabase';
 }
 
 export interface ApplicationSummary {
   id: number;
   challengeId: number | null;
+  companyId?: number | null;
   consultantId: number | null;
+  consultantName?: string | null;
+  consultantEmail?: string | null;
   status: string;
   coverLetter: string;
   proposedBudget: number | null;
@@ -142,7 +145,7 @@ export interface NetworkDirectoryItem extends ConsultantDirectoryItem {
 export interface NetworkCollection {
   items: NetworkDirectoryItem[];
   count: number;
-  source: 'auth-metadata' | 'derived-demo';
+  source: 'supabase';
   persistent: boolean;
   note: string;
 }
@@ -170,7 +173,7 @@ export interface MessageThreadItem {
 export interface ConversationThread {
   conversationId: string;
   items: MessageThreadItem[];
-  source: 'auth-metadata' | 'derived-demo';
+  source: 'supabase';
   persistent: boolean;
 }
 

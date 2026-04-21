@@ -34,8 +34,8 @@ const emptyDashboard: DashboardSnapshot = {
 };
 
 export function HomePage() {
-  const { user, profile, loading: authLoading } = useAuth();
-  const isConsultant = (profile?.user_type || user?.user_metadata?.user_type) === 'CONSULTOR';
+  const { profile, loading: authLoading } = useAuth();
+  const isConsultant = profile?.userType === 'CONSULTOR';
   const [dashboard, setDashboard] = useState<DashboardSnapshot>(emptyDashboard);
   const [loading, setLoading] = useState(true);
 

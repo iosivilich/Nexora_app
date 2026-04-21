@@ -1,25 +1,26 @@
 import { NextResponse } from 'next/server';
 import {
+  getAuthenticatedContext,
   listFavoriteConsultants,
   toggleFavoriteConsultant,
 } from '../../../../src/lib/backend-data';
 
-export async function GET(request: Request) {
+function getErrorStatus(error: unknown) {
+  return typeof error === 'object' && error && 'status' in error && typeof error.status === 'number'
+    ? error.status
+    : 500;
+}
+
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const profileId = searchParams.get('profileId');
-
-    if (!profileId) {
-      return NextResponse.json({ error: 'profileId es obligatorio.' }, { status: 400 });
-    }
-
-    const collection = await listFavoriteConsultants(profileId);
+    const context = await getAuthenticatedContext();
+    const collection = await listFavoriteConsultants(context.user.id, context.routeClient);
     return NextResponse.json(collection);
   } catch (error) {
     console.error('GET /api/network/favorites failed', error);
     return NextResponse.json(
-      { error: 'No pudimos cargar los favoritos del usuario.' },
-      { status: 500 },
+      { error: error instanceof Error ? error.message : 'No pudimos cargar los favoritos del usuario.' },
+      { status: getErrorStatus(error) },
     );
   }
 }
@@ -27,24 +28,24 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
-      profileId?: string;
       consultantId?: string;
     };
 
-    if (!body.profileId || !body.consultantId) {
+    if (!body.consultantId) {
       return NextResponse.json(
-        { error: 'profileId y consultantId son obligatorios.' },
+        { error: 'consultantId es obligatorio.' },
         { status: 400 },
       );
     }
 
-    const collection = await toggleFavoriteConsultant(body.profileId, body.consultantId);
+    const context = await getAuthenticatedContext();
+    const collection = await toggleFavoriteConsultant(context.user.id, body.consultantId, context.routeClient);
     return NextResponse.json(collection);
   } catch (error) {
     console.error('POST /api/network/favorites failed', error);
     return NextResponse.json(
-      { error: 'No pudimos actualizar los favoritos del usuario.' },
-      { status: 500 },
+      { error: error instanceof Error ? error.message : 'No pudimos actualizar los favoritos del usuario.' },
+      { status: getErrorStatus(error) },
     );
   }
 }

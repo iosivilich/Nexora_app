@@ -47,6 +47,13 @@ describe('LoginPage', () => {
     expect(screen.getByText('Soy Consultor')).toBeInTheDocument();
   });
 
+  it('shows avatar upload during sign-up', () => {
+    render(<LoginPage />);
+    fireEvent.click(screen.getByText('Regístrate aquí'));
+    expect(screen.getByText('Foto de perfil')).toBeInTheDocument();
+    expect(screen.getByLabelText('Elegir foto')).toBeInTheDocument();
+  });
+
   it('renders Google login button', () => {
     render(<LoginPage />);
     expect(screen.getByText('Google')).toBeInTheDocument();

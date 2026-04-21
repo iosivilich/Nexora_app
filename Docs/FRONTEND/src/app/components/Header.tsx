@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, Bell, Menu, User, Settings, LogOut, ChevronDown, LogIn } from 'lucide-react';
+import { Bell, User, Settings, LogOut, ChevronDown, LogIn } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
@@ -12,6 +12,10 @@ export function Header() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const displayName = profile?.fullName || user?.email?.split('@')[0] || 'Usuario';
+  const avatarUrl =
+    profile?.avatarUrl ||
+    (user ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}` : '');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -69,7 +73,7 @@ export function Header() {
                   >
                     <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#2563EB] shadow-lg shadow-[#2563EB]/30 bg-blue-500/20">
                       <img
-                        src={profile?.avatar_url || user.user_metadata.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`}
+                        src={avatarUrl}
                         alt="Profile"
                         className="w-full h-full object-cover"
                       />
@@ -89,7 +93,7 @@ export function Header() {
                       transition={{ duration: 0.2 }}
                     >
                       <div className="p-4 border-b border-white/10 bg-white/5">
-                        <p className="text-white font-medium truncate">{profile?.full_name || user.user_metadata.full_name || 'Usuario'}</p>
+                        <p className="text-white font-medium truncate">{displayName}</p>
                         <p className="text-sm text-white/60 truncate">{user.email}</p>
                       </div>
                       <div className="p-2">

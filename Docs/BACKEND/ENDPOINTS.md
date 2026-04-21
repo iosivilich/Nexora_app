@@ -10,8 +10,8 @@ Hoy convivimos con tres fuentes de datos:
    Usado por el frontend actual y por la sesion autenticada.
 2. **Tablas de negocio**
    `empresa`, `consultor`, `desafio`, `postulacion`, `contrato`, `calificacion`.
-3. **`auth.user_metadata`**
-   Soporte provisional para settings, favoritos, conexiones, mensajes demo y citas, mientras se crean tablas sociales dedicadas.
+3. **Tablas sociales dedicadas**
+   `user_settings`, `favorites`, `connections`, `conversations`, `direct_messages` y `appointments`.
 
 ## Rutas implementadas
 
@@ -36,27 +36,28 @@ Hoy convivimos con tres fuentes de datos:
 
 | Ruta | Metodo | Backing | Descripcion |
 |---|---|---|---|
-| `/api/profile/me` | `GET` | `profiles` + `consultants` + `auth.users` + busqueda por email en `empresa`/`consultor` | Devuelve el perfil enriquecido usando `profileId`. |
-| `/api/profile/me` | `PUT` | `profiles` + `consultants` | Actualiza datos visibles del perfil autenticado. |
-| `/api/settings` | `GET` | `auth.user_metadata` | Obtiene preferencias del usuario con `profileId`. |
-| `/api/settings` | `PUT` | `auth.user_metadata` | Actualiza `notifications`, `language` y `timezone`. |
-| `/api/settings/password` | `PUT` | `auth.users` via admin API | Cambia la contraseña usando `profileId` y `newPassword`. |
-| `/api/analytics/stats` | `GET` | Mezcla de Supabase real + derivaciones | Retorna metricas para analytics. Soporta `profileId`, `idEmpresa`, `idConsultor`. |
+| `/api/profile/me` | `GET` | `profiles` + `consultants` + `user_settings` + vinculo persistido a `empresa`/`consultor` | Devuelve el perfil enriquecido del usuario autenticado; ya no confia en `profileId` enviado por cliente. |
+| `/api/profile/me` | `PUT` | `profiles` + `consultants` | Actualiza datos visibles del perfil autenticado usando la sesion activa. |
+| `/api/settings` | `GET` | `user_settings` | Obtiene preferencias del usuario autenticado. |
+| `/api/settings` | `PUT` | `user_settings` | Actualiza `notifications`, `language` y `timezone` del usuario autenticado. |
+| `/api/settings/password` | `PUT` | `auth.users` via admin API | Cambia la contraseña del usuario autenticado. |
+| `/api/analytics/stats` | `GET` | Mezcla de Supabase real + derivaciones | Retorna metricas para analytics de la sesion actual y admite `idEmpresa` / `idConsultor` cuando aplica. |
 
 ### Red, mensajes y citas
 
 | Ruta | Metodo | Backing | Descripcion |
 |---|---|---|---|
-| `/api/network/connections` | `GET` | `auth.user_metadata` + `consultants` | Lista conexiones del usuario. Si no existen datos propios, devuelve una coleccion demo derivada. |
-| `/api/network/connections` | `POST` | `auth.user_metadata` | Agrega un consultor a la red usando `profileId` y `consultantId`. |
-| `/api/network/connections` | `DELETE` | `auth.user_metadata` | Elimina una conexion usando `profileId` y `consultantId`. |
-| `/api/network/favorites` | `GET` | `auth.user_metadata` + `consultants` | Lista favoritos del usuario o una coleccion demo inicial. |
-| `/api/network/favorites` | `POST` | `auth.user_metadata` | Hace toggle de favorito usando `profileId` y `consultantId`. |
-| `/api/messages/conversations` | `GET` | `auth.user_metadata` + `consultants` | Lista previews de conversaciones para el usuario. |
-| `/api/messages/thread` | `GET` | `auth.user_metadata` + mensajes demo | Devuelve el hilo de una conversacion usando `profileId` y `conversationId`. |
-| `/api/messages/send` | `POST` | `auth.user_metadata` | Persiste mensajes demo por usuario usando `profileId`, `conversationId` y `text`. |
-| `/api/appointments` | `GET` | `auth.user_metadata` | Lista solicitudes de consultoria agendadas por el usuario. |
-| `/api/appointments` | `POST` | `auth.user_metadata` | Crea una solicitud de consultoria con `profileId`, `consultantId`, `requestedAt` y `note`. |
+| `/api/network/connections` | `GET` | `connections` + `consultants` | Lista conexiones reales del usuario autenticado. |
+| `/api/network/connections` | `POST` | `connections` | Agrega un consultor a la red usando la sesion del usuario y `consultantId`. |
+| `/api/network/connections` | `DELETE` | `connections` | Elimina una conexion del usuario autenticado usando `consultantId`. |
+| `/api/network/favorites` | `GET` | `favorites` + `consultants` | Lista favoritos reales del usuario autenticado. |
+| `/api/network/favorites` | `POST` | `favorites` | Hace toggle de favorito usando la sesion del usuario y `consultantId`. |
+| `/api/messages/conversations` | `GET` | `conversations` + `direct_messages` | Lista previews reales de conversaciones para el usuario autenticado. |
+| `/api/messages/conversations` | `POST` | `conversations` | Crea o recupera una conversacion real entre empresa autenticada y consultor. |
+| `/api/messages/thread` | `GET` | `direct_messages` | Devuelve el hilo real de una conversacion usando la sesion activa y `conversationId`. |
+| `/api/messages/send` | `POST` | `direct_messages` | Persiste mensajes reales usando la sesion activa, `conversationId` y `text`. |
+| `/api/appointments` | `GET` | `appointments` | Lista solicitudes de consultoria del usuario autenticado. |
+| `/api/appointments` | `POST` | `appointments` | Crea una solicitud de consultoria real con `consultantId`, `requestedAt` y `note`. |
 
 ### Seed y soporte demo
 
@@ -80,15 +81,16 @@ Hoy convivimos con tres fuentes de datos:
 | `contrato` | Preparada para contratos formales. |
 | `calificacion` | Preparada para evaluaciones. |
 
-### Persistencia provisional en metadata
+### Persistencia social real
 
-Estas capacidades ya tienen endpoint, pero hoy se guardan en `auth.user_metadata` porque no existe una tabla social dedicada:
+Estas capacidades ya quedaron migradas a tablas dedicadas en Supabase:
 
 - settings
 - conexiones
 - favoritos
-- mensajes demo
-- citas demo
+- conversaciones
+- mensajes directos
+- citas
 
 ## Payloads clave
 
@@ -122,7 +124,6 @@ Estas capacidades ya tienen endpoint, pero hoy se guardan en `auth.user_metadata
 
 ```json
 {
-  "profileId": "uuid-del-auth-user",
   "settings": {
     "notifications": {
       "email": true,
@@ -135,11 +136,10 @@ Estas capacidades ya tienen endpoint, pero hoy se guardan en `auth.user_metadata
 }
 ```
 
-### Enviar mensaje demo
+### Enviar mensaje
 
 ```json
 {
-  "profileId": "uuid-del-auth-user",
   "conversationId": "uuid-del-consultor",
   "text": "Hola, me interesa conversar sobre tu experiencia."
 }
@@ -155,25 +155,11 @@ Estas capacidades ya tienen endpoint, pero hoy se guardan en `auth.user_metadata
 - Desafios
 - Postulaciones
 - Perfil base
-- Cambio de contraseña
-- Seed demo
-
-### Persistente provisional en `auth.user_metadata`
-
 - Settings
 - Conexiones
 - Favoritos
-- Mensajes demo
-- Citas demo
-
-## Siguiente evolucion recomendada
-
-Para cerrar la brecha final del backend conviene crear tablas sociales dedicadas:
-
-- `conexiones`
-- `favoritos`
-- `conversaciones`
-- `mensajes_directos`
-- `appointments` o `consultorias_agendadas`
-
-En ese momento los endpoints ya implementados pueden migrarse de `auth.user_metadata` a tablas reales sin romper el contrato HTTP actual.
+- Conversaciones
+- Mensajes directos
+- Citas
+- Cambio de contraseña
+- Seed demo

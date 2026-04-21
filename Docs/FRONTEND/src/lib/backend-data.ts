@@ -16,7 +16,9 @@ import type {
   MessageThreadItem,
   AppointmentSummary,
 } from './backend-types';
-import { hasSupabaseServiceRole, supabase, supabaseAdmin } from './supabase';
+import type { SupabaseClient, User } from '@supabase/supabase-js';
+import { createRouteHandlerClient } from './supabase-server';
+import { hasSupabaseServiceRole, supabaseAdmin, supabasePublic } from './supabase';
 
 type ProfileRow = {
   id: string;
@@ -24,6 +26,8 @@ type ProfileRow = {
   avatar_url: string | null;
   city: string | null;
   user_type: string | null;
+  empresa_id?: number | null;
+  consultor_id?: number | null;
   updated_at?: string | null;
 };
 
@@ -85,6 +89,65 @@ type ApplicationRow = {
   propuesta_economica: number | null;
   fecha_postulacion: string | null;
   estado: string | null;
+};
+
+type UserSettingsRow = {
+  user_id: string;
+  notifications_email: boolean | null;
+  notifications_push: boolean | null;
+  notifications_projects: boolean | null;
+  language: string | null;
+  timezone: string | null;
+  updated_at?: string | null;
+};
+
+type FavoriteRow = {
+  user_id: string;
+  consultant_profile_id: string;
+  created_at: string | null;
+};
+
+type ConnectionRow = {
+  user_id: string;
+  consultant_profile_id: string;
+  created_at: string | null;
+};
+
+type ConversationRow = {
+  id: string;
+  company_user_id: string;
+  consultant_user_id: string;
+  challenge_id: number | null;
+  created_at: string;
+  last_message_at: string | null;
+};
+
+type DirectMessageRow = {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  read_at: string | null;
+  created_at: string;
+};
+
+type AppointmentRow = {
+  id: string;
+  requester_id: string;
+  consultant_profile_id: string;
+  requested_at: string;
+  note: string | null;
+  status: string | null;
+  created_at: string;
+};
+
+export type AuthenticatedBackendContext = {
+  routeClient: SupabaseClient;
+  user: User;
+  profile: ProfileRow;
+  consultantProfile: ConsultantDirectoryItem | null;
+  companyRecord: BusinessCompanyRow | null;
+  consultantRecord: BusinessConsultorRow | null;
 };
 
 const DEMO_COMPANIES = [
@@ -325,7 +388,7 @@ function createRuntimeError(message: string, status = 400) {
 }
 
 function getDatabaseClient() {
-  return supabaseAdmin ?? supabase;
+  return supabaseAdmin ?? supabasePublic;
 }
 
 function normalizeQueryValue(value?: string | null) {
@@ -339,6 +402,38 @@ function normalizeStringList(values: unknown) {
   }
 
   return values.filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+}
+
+function normalizeUserType(value: unknown): 'EMPRESA' | 'CONSULTOR' | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim().toUpperCase();
+  return normalized === 'EMPRESA' || normalized === 'CONSULTOR' ? normalized : null;
+}
+
+function getAuthMetadata(user: User) {
+  return (user.user_metadata ?? {}) as Record<string, unknown>;
+}
+
+function buildProfilePayloadFromAuthUser(user: User) {
+  const metadata = getAuthMetadata(user);
+  const fullName =
+    readString(metadata, ['full_name', 'name']) ??
+    user.email?.split('@')[0] ??
+    'Usuario Nexora';
+  const avatarUrl = readString(metadata, ['avatar_url', 'picture']);
+  const city = readString(metadata, ['city']);
+  const userType = normalizeUserType(metadata.user_type);
+
+  return {
+    full_name: fullName,
+    avatar_url: avatarUrl,
+    city,
+    user_type: userType,
+    updated_at: new Date().toISOString(),
+  };
 }
 
 function formatRelativeLabel(dateValue: string) {
@@ -374,37 +469,6 @@ function formatTimeLabel(dateValue: string) {
   });
 }
 
-function getDefaultConversationMessages(consultant: ConsultantDirectoryItem): MessageThreadItem[] {
-  const createdAt = new Date().toISOString();
-
-  return [
-    {
-      id: `${consultant.id}-welcome`,
-      text: `Hola, soy ${consultant.name}. Estoy disponible para conversar sobre ${consultant.expertise[0] ?? 'estrategia'}.`,
-      time: '10:30',
-      isOwn: false,
-      createdAt,
-    },
-    {
-      id: `${consultant.id}-reply`,
-      text: 'Perfecto, quiero entender mejor tu experiencia y el alcance que podrías cubrir.',
-      time: '10:35',
-      isOwn: true,
-      createdAt,
-    },
-  ];
-}
-
-function toStoredMessage(message: MessageThreadItem) {
-  return {
-    id: message.id,
-    text: message.text,
-    time: message.time,
-    isOwn: message.isOwn,
-    createdAt: message.createdAt,
-  };
-}
-
 async function getAuthUser(profileId: string) {
   if (!supabaseAdmin) {
     throw createRuntimeError('La SUPABASE_SERVICE_ROLE_KEY es necesaria para acceder a metadata del usuario.', 503);
@@ -423,54 +487,254 @@ async function getAuthUser(profileId: string) {
   return data.user;
 }
 
-async function readUserMetadata(profileId: string) {
-  const user = await getAuthUser(profileId);
-  return user.user_metadata ?? {};
-}
-
-async function patchUserMetadata(
-  profileId: string,
-  updater: (metadata: Record<string, unknown>) => Record<string, unknown>,
+async function syncProfileFromAuthUser(
+  profile: ProfileRow | null,
+  user: User,
+  db: SupabaseClient = getDatabaseClient(),
 ) {
-  const user = await getAuthUser(profileId);
-  const currentMetadata = (user.user_metadata ?? {}) as Record<string, unknown>;
-  const nextMetadata = updater(currentMetadata);
+  const payload = buildProfilePayloadFromAuthUser(user);
 
-  const { data, error } = await supabaseAdmin!.auth.admin.updateUserById(profileId, {
-    user_metadata: nextMetadata,
-  });
+  if (!profile) {
+    const insertPayload = {
+      id: user.id,
+      ...payload,
+    };
+
+    const { data, error } = await db.from('profiles').upsert(insertPayload, { onConflict: 'id' }).select('*').single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ProfileRow;
+  }
+
+  const updates: Partial<ProfileRow> = {};
+
+  if (payload.full_name && !profile.full_name) {
+    updates.full_name = payload.full_name;
+  }
+
+  if (payload.avatar_url && !profile.avatar_url) {
+    updates.avatar_url = payload.avatar_url;
+  }
+
+  if (payload.city && !profile.city) {
+    updates.city = payload.city;
+  }
+
+  if (payload.user_type && payload.user_type !== profile.user_type) {
+    updates.user_type = payload.user_type;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return profile;
+  }
+
+  updates.updated_at = new Date().toISOString();
+
+  const { data, error } = await db.from('profiles').update(updates).eq('id', user.id).select('*').single();
 
   if (error) {
     throw error;
   }
 
-  return data.user?.user_metadata ?? nextMetadata;
+  return data as ProfileRow;
 }
 
-async function resolveBusinessRecords(profileId: string, email?: string | null) {
+function mapUserSettingsRow(row: UserSettingsRow | null): UserSettings {
+  if (!row) {
+    return DEFAULT_SETTINGS;
+  }
+
+  return {
+    notifications: {
+      email: row.notifications_email ?? DEFAULT_SETTINGS.notifications.email,
+      push: row.notifications_push ?? DEFAULT_SETTINGS.notifications.push,
+      projects: row.notifications_projects ?? DEFAULT_SETTINGS.notifications.projects,
+    },
+    language: row.language ?? DEFAULT_SETTINGS.language,
+    timezone: row.timezone ?? DEFAULT_SETTINGS.timezone,
+  };
+}
+
+function toUserSettingsRow(userId: string, settings: UserSettings) {
+  return {
+    user_id: userId,
+    notifications_email: settings.notifications.email,
+    notifications_push: settings.notifications.push,
+    notifications_projects: settings.notifications.projects,
+    language: settings.language,
+    timezone: settings.timezone,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function resolveBusinessRecords(profile: ProfileRow, email?: string | null) {
   const db = getDatabaseClient();
   const normalizedEmail = normalizeQueryValue(email)?.toLowerCase() ?? null;
+  const fallbackDisplayName =
+    normalizeQueryValue(profile.full_name) ??
+    normalizedEmail?.split('@')[0]?.replace(/[._-]+/g, ' ') ??
+    'Usuario Nexora';
 
-  const [companyResult, consultantResult] = await Promise.all([
-    normalizedEmail
-      ? db.from('empresa').select('*').ilike('email_contacto', normalizedEmail).limit(1).maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
-    normalizedEmail
-      ? db.from('consultor').select('*').ilike('email', normalizedEmail).limit(1).maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
+  const buildConsultantName = () => {
+    const parts = fallbackDisplayName
+      .split(/\s+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    return {
+      nombre: parts[0] ?? 'Consultor',
+      apellido: parts.slice(1).join(' ') || 'Nexora',
+    };
+  };
+
+  const [linkedCompanyResult, linkedConsultantResult, fallbackCompanyResult, fallbackConsultantResult] =
+    await Promise.all([
+      profile.empresa_id
+        ? db.from('empresa').select('*').eq('id_empresa', profile.empresa_id).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      profile.consultor_id
+        ? db.from('consultor').select('*').eq('id_consultor', profile.consultor_id).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      !profile.empresa_id && normalizedEmail
+        ? db.from('empresa').select('*').ilike('email_contacto', normalizedEmail).limit(1).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      !profile.consultor_id && normalizedEmail
+        ? db.from('consultor').select('*').ilike('email', normalizedEmail).limit(1).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+
+  if (linkedCompanyResult.error) {
+    throw linkedCompanyResult.error;
+  }
+
+  if (linkedConsultantResult.error) {
+    throw linkedConsultantResult.error;
+  }
+
+  if (fallbackCompanyResult.error) {
+    throw fallbackCompanyResult.error;
+  }
+
+  if (fallbackConsultantResult.error) {
+    throw fallbackConsultantResult.error;
+  }
+
+  let companyRecord = (linkedCompanyResult.data ?? fallbackCompanyResult.data ?? null) as BusinessCompanyRow | null;
+  let consultantRecord = (linkedConsultantResult.data ??
+    fallbackConsultantResult.data ??
+    null) as BusinessConsultorRow | null;
+
+  if (profile.user_type === 'EMPRESA' && !companyRecord && normalizedEmail) {
+    const { data, error } = await db
+      .from('empresa')
+      .insert({
+        nombre_empresa: fallbackDisplayName,
+        sector: 'General',
+        'tamaño_empresa': null,
+        email_contacto: normalizedEmail,
+        telefono: null,
+        descripcion: null,
+        fecha_registro: new Date().toISOString(),
+        estado: 'activo',
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    companyRecord = data as BusinessCompanyRow;
+  }
+
+  if (profile.user_type === 'CONSULTOR' && !consultantRecord && normalizedEmail) {
+    const { nombre, apellido } = buildConsultantName();
+    const { data, error } = await db
+      .from('consultor')
+      .insert({
+        nombre,
+        apellido,
+        email: normalizedEmail,
+        telefono: null,
+        especialidad: 'Consultoría general',
+        'años_experiencia': 0,
+        tarifa_referencial: null,
+        estado: 'activo',
+        fecha_registro: new Date().toISOString(),
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    consultantRecord = data as BusinessConsultorRow;
+  }
+
+  const profileLinkUpdates: Record<string, number> = {};
+  if (!profile.empresa_id && companyRecord?.id_empresa) {
+    profileLinkUpdates.empresa_id = companyRecord.id_empresa;
+  }
+  if (!profile.consultor_id && consultantRecord?.id_consultor) {
+    profileLinkUpdates.consultor_id = consultantRecord.id_consultor;
+  }
+
+  if (Object.keys(profileLinkUpdates).length > 0) {
+    await db.from('profiles').update(profileLinkUpdates).eq('id', profile.id);
+  }
+
+  return {
+    companyRecord,
+    consultantRecord,
+  };
+}
+
+export async function getAuthenticatedContext(): Promise<AuthenticatedBackendContext> {
+  const routeClient = await createRouteHandlerClient();
+  const {
+    data: { user },
+    error,
+  } = await routeClient.auth.getUser();
+
+  if (error || !user) {
+    throw createRuntimeError('Debes iniciar sesión para acceder a este recurso.', 401);
+  }
+
+  const db = getDatabaseClient();
+  const [profileResult, consultantResult] = await Promise.all([
+    db.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+    db
+      .from('consultants')
+      .select(
+        'id, role, rating, projects, experience_years, age, bio, expertise, verified, profiles!consultants_id_fkey(id, full_name, avatar_url, city, user_type, empresa_id, consultor_id, updated_at)',
+      )
+      .eq('id', user.id)
+      .maybeSingle(),
   ]);
 
-  if (companyResult.error) {
-    throw companyResult.error;
+  if (profileResult.error) {
+    throw profileResult.error;
   }
 
   if (consultantResult.error) {
     throw consultantResult.error;
   }
 
+  const profile = await syncProfileFromAuthUser(profileResult.data as ProfileRow | null, user, routeClient);
+
+  const { companyRecord, consultantRecord } = await resolveBusinessRecords(profile, user.email ?? null);
+
   return {
-    companyRecord: (companyResult.data ?? null) as BusinessCompanyRow | null,
-    consultantRecord: (consultantResult.data ?? null) as BusinessConsultorRow | null,
+    routeClient,
+    user,
+    profile,
+    consultantProfile: consultantResult.data ? mapConsultant(consultantResult.data as ConsultantRow) : null,
+    companyRecord,
+    consultantRecord,
   };
 }
 
@@ -504,11 +768,20 @@ function mapApplication(
   row: ApplicationRow,
   challenge?: ChallengeRow | null,
   company?: BusinessCompanyRow | null,
+  consultant?: BusinessConsultorRow | null,
 ): ApplicationSummary {
+  const consultantName = [consultant?.nombre, consultant?.apellido]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .join(' ')
+    .trim();
+
   return {
     id: row.id_postulacion,
     challengeId: row.id_desafio,
+    companyId: challenge?.id_empresa ?? null,
     consultantId: row.id_consultor,
+    consultantName: consultantName || null,
+    consultantEmail: consultant?.email ?? null,
     status: row.estado ?? 'pendiente',
     coverLetter: row.mensaje_presentacion ?? '',
     proposedBudget: row.propuesta_economica ?? null,
@@ -517,15 +790,6 @@ function mapApplication(
     challengeStatus: challenge?.estado ?? null,
     companyName: company?.nombre_empresa ?? null,
   };
-}
-
-function ensureProfileId(profileId?: string | null) {
-  const normalized = normalizeQueryValue(profileId);
-  if (!normalized) {
-    throw createRuntimeError('profileId es obligatorio para esta operación.', 400);
-  }
-
-  return normalized;
 }
 
 function normalizeSettings(input: unknown): UserSettings {
@@ -547,9 +811,9 @@ function normalizeSettings(input: unknown): UserSettings {
 }
 
 export async function getConsultants(limit?: number) {
-  let query = supabase
+  let query = supabasePublic
     .from('consultants')
-    .select('id, role, rating, projects, experience_years, age, bio, expertise, verified, profiles!inner(id, full_name, avatar_url, city, user_type)')
+    .select('id, role, rating, projects, experience_years, age, bio, expertise, verified, profiles!consultants_id_fkey(id, full_name, avatar_url, city, user_type)')
     .order('rating', { ascending: false });
 
   if (limit) {
@@ -626,7 +890,7 @@ export async function searchConsultants(filters: {
 }
 
 export async function getCompanies(limit?: number) {
-  let query = supabase
+  let query = supabasePublic
     .from('profiles')
     .select('id, full_name, avatar_url, city, user_type, updated_at')
     .eq('user_type', 'EMPRESA')
@@ -771,6 +1035,7 @@ export async function createChallenge(input: {
 
 export async function listApplications(filters: {
   idConsultor?: number | null;
+  idEmpresa?: number | null;
   idDesafio?: number | null;
   status?: string | null;
 }) {
@@ -845,17 +1110,24 @@ export async function listApplications(filters: {
     {},
   );
 
-  return applicationRows.map((row) => {
+  let items = applicationRows.map((row) => {
     const challenge = row.id_desafio ? challenges[row.id_desafio] : null;
     const company = challenge?.id_empresa ? companies[challenge.id_empresa] : null;
-    const result = mapApplication(row, challenge, company);
+    const consultant = row.id_consultor ? consultants[row.id_consultor] : null;
+    const result = mapApplication(row, challenge, company, consultant);
 
-    if (!result.consultantId && row.id_consultor && consultants[row.id_consultor]) {
-      result.consultantId = consultants[row.id_consultor].id_consultor;
+    if (!result.consultantId && row.id_consultor && consultant) {
+      result.consultantId = consultant.id_consultor;
     }
 
     return result;
   });
+
+  if (typeof filters.idEmpresa === 'number') {
+    items = items.filter((item) => item.companyId === filters.idEmpresa);
+  }
+
+  return items;
 }
 
 export async function createApplication(input: {
@@ -889,14 +1161,14 @@ export async function createApplication(input: {
 
 export async function getDemoSeedStatus(): Promise<SeedStatus> {
   const [companies, consultants] = await Promise.all([
-    supabase
+    supabasePublic
       .from('profiles')
       .select('id, full_name', { count: 'exact' })
       .eq('user_type', 'EMPRESA')
       .ilike('full_name', '(DEMO)%'),
-    supabase
+    supabasePublic
       .from('consultants')
-      .select('id, profiles!inner(full_name)')
+      .select('id, profiles!consultants_id_fkey(full_name)')
       .order('rating', { ascending: false }),
   ]);
 
@@ -970,16 +1242,113 @@ export async function seedDemoData() {
   return getDemoSeedStatus();
 }
 
+function mapCompanyRecord(companyRecord: BusinessCompanyRow | null) {
+  return companyRecord
+    ? {
+        idEmpresa: companyRecord.id_empresa,
+        nombreEmpresa: companyRecord.nombre_empresa ?? '',
+        sector: companyRecord.sector ?? '',
+        tamanoEmpresa: companyRecord['tamaño_empresa'] ?? null,
+        emailContacto: companyRecord.email_contacto ?? null,
+        telefono: companyRecord.telefono ?? null,
+        descripcion: companyRecord.descripcion ?? null,
+        estado: companyRecord.estado ?? null,
+        fechaRegistro: companyRecord.fecha_registro ?? null,
+      }
+    : null;
+}
+
+function mapConsultantRecord(consultantRecord: BusinessConsultorRow | null) {
+  return consultantRecord
+    ? {
+        idConsultor: consultantRecord.id_consultor,
+        nombre: consultantRecord.nombre ?? '',
+        apellido: consultantRecord.apellido ?? '',
+        email: consultantRecord.email ?? null,
+        telefono: consultantRecord.telefono ?? null,
+        especialidad: consultantRecord.especialidad ?? null,
+        anosExperiencia: consultantRecord['años_experiencia'] ?? null,
+        tarifaReferencial: consultantRecord.tarifa_referencial ?? null,
+        estado: consultantRecord.estado ?? null,
+        fechaRegistro: consultantRecord.fecha_registro ?? null,
+      }
+    : null;
+}
+
+function buildProfileDetails(input: {
+  profile: ProfileRow;
+  user: User;
+  consultantProfile: ConsultantDirectoryItem | null;
+  companyRecord: BusinessCompanyRow | null;
+  consultantRecord: BusinessConsultorRow | null;
+  settings: UserSettings;
+}): ProfileDetails {
+  const metadata = getAuthMetadata(input.user);
+  const fullName = input.profile.full_name ?? readString(metadata, ['full_name', 'name']) ?? '';
+  const avatarUrl = input.profile.avatar_url ?? readString(metadata, ['avatar_url', 'picture']);
+  const city = input.profile.city ?? readString(metadata, ['city']) ?? '';
+  const metadataUserType = normalizeUserType(metadata.user_type);
+  const userType =
+    input.profile.user_type ??
+    metadataUserType ??
+    (input.companyRecord ? 'EMPRESA' : 'CONSULTOR');
+
+  return {
+    id: input.profile.id,
+    fullName,
+    avatarUrl: buildAvatar(fullName || 'Nexora', avatarUrl),
+    city,
+    userType,
+    email: input.user.email ?? null,
+    updatedAt: input.profile.updated_at ?? null,
+    consultantProfile: input.consultantProfile,
+    companyRecord: mapCompanyRecord(input.companyRecord),
+    consultantRecord: mapConsultantRecord(input.consultantRecord),
+    settings: input.settings,
+  };
+}
+
+async function getUserSettingsRow(
+  userId: string,
+  db: SupabaseClient = getDatabaseClient(),
+): Promise<UserSettingsRow | null> {
+  const { data, error } = await db.from('user_settings').select('*').eq('user_id', userId).maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? null) as UserSettingsRow | null;
+}
+
+export async function getCurrentProfileDetails(
+  context: AuthenticatedBackendContext,
+): Promise<ProfileDetails> {
+  const settings = await getUserSettings(context.user.id, context.routeClient);
+
+  return buildProfileDetails({
+    profile: context.profile,
+    user: context.user,
+    consultantProfile: context.consultantProfile,
+    companyRecord: context.companyRecord,
+    consultantRecord: context.consultantRecord,
+    settings,
+  });
+}
+
 export async function getProfileDetails(profileId: string): Promise<ProfileDetails> {
   const db = getDatabaseClient();
-  const [authUser, profileResult, consultantResult] = await Promise.all([
+  const [authUser, profileResult, consultantResult, settingsRow] = await Promise.all([
     getAuthUser(profileId),
     db.from('profiles').select('*').eq('id', profileId).maybeSingle(),
     db
       .from('consultants')
-      .select('id, role, rating, projects, experience_years, age, bio, expertise, verified, profiles!inner(id, full_name, avatar_url, city, user_type)')
+      .select(
+        'id, role, rating, projects, experience_years, age, bio, expertise, verified, profiles!consultants_id_fkey(id, full_name, avatar_url, city, user_type, empresa_id, consultor_id, updated_at)',
+      )
       .eq('id', profileId)
       .maybeSingle(),
+    getUserSettingsRow(profileId, db),
   ]);
 
   if (profileResult.error) {
@@ -990,64 +1359,32 @@ export async function getProfileDetails(profileId: string): Promise<ProfileDetai
     throw consultantResult.error;
   }
 
-  const profile = profileResult.data as ProfileRow | null;
-  if (!profile) {
-    throw createRuntimeError('No encontramos el perfil solicitado.', 404);
-  }
+  const profile = await syncProfileFromAuthUser(profileResult.data as ProfileRow | null, authUser, db);
 
-  const { companyRecord, consultantRecord } = await resolveBusinessRecords(profileId, authUser.email);
-  const settings = normalizeSettings((authUser.user_metadata as Record<string, unknown> | undefined)?.settings);
+  const { companyRecord, consultantRecord } = await resolveBusinessRecords(profile, authUser.email ?? null);
 
-  return {
-    id: profile.id,
-    fullName: profile.full_name ?? '',
-    avatarUrl: buildAvatar(profile.full_name ?? 'Nexora', profile.avatar_url),
-    city: profile.city ?? '',
-    userType: profile.user_type ?? 'CONSULTOR',
-    email: authUser.email ?? null,
-    updatedAt: profile.updated_at ?? null,
+  return buildProfileDetails({
+    profile,
+    user: authUser,
     consultantProfile: consultantResult.data ? mapConsultant(consultantResult.data as ConsultantRow) : null,
-    companyRecord: companyRecord
-      ? {
-          idEmpresa: companyRecord.id_empresa,
-          nombreEmpresa: companyRecord.nombre_empresa ?? '',
-          sector: companyRecord.sector ?? '',
-          tamanoEmpresa: companyRecord['tamaño_empresa'] ?? null,
-          emailContacto: companyRecord.email_contacto ?? null,
-          telefono: companyRecord.telefono ?? null,
-          descripcion: companyRecord.descripcion ?? null,
-          estado: companyRecord.estado ?? null,
-          fechaRegistro: companyRecord.fecha_registro ?? null,
-        }
-      : null,
-    consultantRecord: consultantRecord
-      ? {
-          idConsultor: consultantRecord.id_consultor,
-          nombre: consultantRecord.nombre ?? '',
-          apellido: consultantRecord.apellido ?? '',
-          email: consultantRecord.email ?? null,
-          telefono: consultantRecord.telefono ?? null,
-          especialidad: consultantRecord.especialidad ?? null,
-          anosExperiencia: consultantRecord['años_experiencia'] ?? null,
-          tarifaReferencial: consultantRecord.tarifa_referencial ?? null,
-          estado: consultantRecord.estado ?? null,
-          fechaRegistro: consultantRecord.fecha_registro ?? null,
-        }
-      : null,
-    settings,
-  };
+    companyRecord,
+    consultantRecord,
+    settings: mapUserSettingsRow(settingsRow),
+  });
 }
 
-export async function updateProfileDetails(input: {
-  profileId: string;
-  fullName?: string | null;
-  city?: string | null;
-  avatarUrl?: string | null;
-  role?: string | null;
-  bio?: string | null;
-  expertise?: string[] | null;
-}) {
-  const db = getDatabaseClient();
+export async function updateProfileDetails(
+  input: {
+    profileId: string;
+    fullName?: string | null;
+    city?: string | null;
+    avatarUrl?: string | null;
+    role?: string | null;
+    bio?: string | null;
+    expertise?: string[] | null;
+  },
+  db: SupabaseClient = getDatabaseClient(),
+) {
   const profileUpdates: Record<string, unknown> = {};
 
   if (typeof input.fullName === 'string') {
@@ -1091,25 +1428,35 @@ export async function updateProfileDetails(input: {
   return getProfileDetails(input.profileId);
 }
 
-export async function getUserSettings(profileId: string) {
-  const metadata = await readUserMetadata(profileId);
-  return normalizeSettings(metadata.settings);
+export async function getUserSettings(
+  profileId: string,
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  return mapUserSettingsRow(await getUserSettingsRow(profileId, db));
 }
 
-export async function updateUserSettings(profileId: string, settings: Partial<UserSettings>) {
+export async function updateUserSettings(
+  profileId: string,
+  settings: Partial<UserSettings>,
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  const currentSettings = await getUserSettings(profileId, db);
   const nextSettings = normalizeSettings({
-    ...normalizeSettings((await readUserMetadata(profileId)).settings),
+    ...currentSettings,
     ...settings,
     notifications: {
-      ...normalizeSettings((await readUserMetadata(profileId)).settings).notifications,
+      ...currentSettings.notifications,
       ...(settings.notifications ?? {}),
     },
   });
 
-  await patchUserMetadata(profileId, (metadata) => ({
-    ...metadata,
-    settings: nextSettings,
-  }));
+  const { error } = await db
+    .from('user_settings')
+    .upsert(toUserSettingsRow(profileId, nextSettings), { onConflict: 'user_id' });
+
+  if (error) {
+    throw error;
+  }
 
   return nextSettings;
 }
@@ -1145,8 +1492,12 @@ export async function getAnalyticsStats(input: {
     }),
   ]);
 
-  const connections = input.profileId ? await getNetworkCollection(input.profileId, 'connections') : null;
-  const favorites = input.profileId ? await getNetworkCollection(input.profileId, 'favorites') : null;
+  const connections = input.profileId
+    ? await getNetworkCollection(input.profileId, 'connections')
+    : null;
+  const favorites = input.profileId
+    ? await getNetworkCollection(input.profileId, 'favorites')
+    : null;
 
   const profileViews = Math.max(
     dashboard.consultantCount * 25,
@@ -1169,42 +1520,68 @@ export async function getAnalyticsStats(input: {
     engagement,
     favoriteConsultants,
     applications: applicationsCount,
-    note: 'Las métricas combinan datos reales de Supabase con derivaciones provisionales mientras se completa el esquema social.',
+    note: 'Las métricas combinan datos del marketplace, postulaciones y actividad social persistida en Supabase.',
   };
 }
 
-async function getNetworkCollection(profileId: string, kind: 'connections' | 'favorites'): Promise<NetworkCollection> {
+async function getNetworkCollection(
+  profileId: string,
+  kind: 'connections' | 'favorites',
+  db: SupabaseClient = getDatabaseClient(),
+): Promise<NetworkCollection> {
+  const table = kind === 'connections' ? 'connections' : 'favorites';
+  const { data, error } = await db
+    .from(table)
+    .select('consultant_profile_id, created_at')
+    .eq('user_id', profileId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  const rows = (data ?? []) as Array<ConnectionRow | FavoriteRow>;
   const consultants = await getConsultants();
-  const metadata = await readUserMetadata(profileId);
-  const metadataKey = kind === 'connections' ? 'networkConnections' : 'favoriteConsultants';
-  const storedIds = normalizeStringList(metadata[metadataKey]);
-  const fallbackIds = consultants
-    .slice(kind === 'connections' ? 0 : 3, kind === 'connections' ? 3 : undefined)
-    .map((consultant) => consultant.id);
-  const ids = storedIds.length > 0 ? storedIds : fallbackIds;
-  const items = ids
-    .map((id) => consultants.find((consultant) => consultant.id === id))
-    .filter((consultant): consultant is ConsultantDirectoryItem => Boolean(consultant))
-    .map((consultant) => ({ ...consultant, connectedAt: null })) as NetworkDirectoryItem[];
+  const byId = new Map(consultants.map((consultant) => [consultant.id, consultant]));
+  const items = rows
+    .map((row) => {
+      const consultant = byId.get(row.consultant_profile_id);
+      if (!consultant) {
+        return null;
+      }
+
+      const item: NetworkDirectoryItem = {
+        ...consultant,
+        connectedAt: row.created_at ?? null,
+      };
+
+      return item;
+    })
+    .filter((item): item is NetworkDirectoryItem => Boolean(item));
 
   return {
     items,
     count: items.length,
-    source: storedIds.length > 0 ? 'auth-metadata' : 'derived-demo',
-    persistent: storedIds.length > 0,
-    note:
-      storedIds.length > 0
-        ? 'Colección persistida en auth.user_metadata para el usuario autenticado.'
-        : 'Colección demo derivada de consultores reales hasta que el usuario personalice su red.',
+    source: 'supabase',
+    persistent: true,
+    note: items.length
+      ? 'Colección persistida en tablas reales de Supabase.'
+      : 'Todavía no tienes elementos guardados en esta colección.',
   };
 }
 
-export async function listNetworkConnections(profileId: string) {
-  return getNetworkCollection(profileId, 'connections');
+export async function listNetworkConnections(
+  profileId: string,
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  return getNetworkCollection(profileId, 'connections', db);
 }
 
-export async function listFavoriteConsultants(profileId: string) {
-  return getNetworkCollection(profileId, 'favorites');
+export async function listFavoriteConsultants(
+  profileId: string,
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  return getNetworkCollection(profileId, 'favorites', db);
 }
 
 async function updateNetworkCollection(
@@ -1212,223 +1589,410 @@ async function updateNetworkCollection(
   kind: 'connections' | 'favorites',
   consultantId: string,
   mode: 'add' | 'remove' | 'toggle',
+  db: SupabaseClient = getDatabaseClient(),
 ) {
-  const metadataKey = kind === 'connections' ? 'networkConnections' : 'favoriteConsultants';
+  const table = kind === 'connections' ? 'connections' : 'favorites';
+  const { data: consultantData, error: consultantError } = await getDatabaseClient()
+    .from('consultants')
+    .select('id')
+    .eq('id', consultantId)
+    .maybeSingle();
 
-  const updatedMetadata = await patchUserMetadata(profileId, (metadata) => {
-    const currentIds = normalizeStringList(metadata[metadataKey]);
-    const exists = currentIds.includes(consultantId);
-    let nextIds = currentIds;
+  if (consultantError) {
+    throw consultantError;
+  }
 
-    if (mode === 'add' && !exists) {
-      nextIds = [...currentIds, consultantId];
-    } else if (mode === 'remove') {
-      nextIds = currentIds.filter((id) => id !== consultantId);
-    } else if (mode === 'toggle') {
-      nextIds = exists ? currentIds.filter((id) => id !== consultantId) : [...currentIds, consultantId];
+  if (!consultantData) {
+    throw createRuntimeError('No encontramos el consultor seleccionado.', 404);
+  }
+
+  if (mode === 'remove') {
+    const { error } = await db
+      .from(table)
+      .delete()
+      .eq('user_id', profileId)
+      .eq('consultant_profile_id', consultantId);
+
+    if (error) {
+      throw error;
+    }
+  } else {
+    const { data: existing, error: existingError } = await db
+      .from(table)
+      .select('user_id')
+      .eq('user_id', profileId)
+      .eq('consultant_profile_id', consultantId)
+      .maybeSingle();
+
+    if (existingError) {
+      throw existingError;
     }
 
-    return {
-      ...metadata,
-      [metadataKey]: nextIds,
-    };
-  });
+    if (mode === 'toggle' && existing) {
+      const { error } = await db
+        .from(table)
+        .delete()
+        .eq('user_id', profileId)
+        .eq('consultant_profile_id', consultantId);
 
-  return {
-    consultantId,
-    ids: normalizeStringList(updatedMetadata[metadataKey]),
-  };
-}
+      if (error) {
+        throw error;
+      }
+    } else if (!existing) {
+      const { error } = await db.from(table).insert({
+        user_id: profileId,
+        consultant_profile_id: consultantId,
+      });
 
-export async function addNetworkConnection(profileId: string, consultantId: string) {
-  await updateNetworkCollection(profileId, 'connections', consultantId, 'add');
-  return listNetworkConnections(profileId);
-}
-
-export async function removeNetworkConnection(profileId: string, consultantId: string) {
-  await updateNetworkCollection(profileId, 'connections', consultantId, 'remove');
-  return listNetworkConnections(profileId);
-}
-
-export async function toggleFavoriteConsultant(profileId: string, consultantId: string) {
-  await updateNetworkCollection(profileId, 'favorites', consultantId, 'toggle');
-  return listFavoriteConsultants(profileId);
-}
-
-function getStoredThreadMessages(
-  metadata: Record<string, unknown>,
-  conversationId: string,
-): MessageThreadItem[] | null {
-  const threads = metadata.messageThreads;
-  if (!threads || typeof threads !== 'object') {
-    return null;
+      if (error) {
+        throw error;
+      }
+    }
   }
 
-  const thread = (threads as Record<string, unknown>)[conversationId];
-  if (!Array.isArray(thread)) {
-    return null;
+  return kind === 'connections'
+    ? listNetworkConnections(profileId, db)
+    : listFavoriteConsultants(profileId, db);
+}
+
+export async function addNetworkConnection(
+  profileId: string,
+  consultantId: string,
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  return updateNetworkCollection(profileId, 'connections', consultantId, 'add', db);
+}
+
+export async function removeNetworkConnection(
+  profileId: string,
+  consultantId: string,
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  return updateNetworkCollection(profileId, 'connections', consultantId, 'remove', db);
+}
+
+export async function toggleFavoriteConsultant(
+  profileId: string,
+  consultantId: string,
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  return updateNetworkCollection(profileId, 'favorites', consultantId, 'toggle', db);
+}
+
+async function getConversationRows(
+  profileId: string,
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  const { data, error } = await db
+    .from('conversations')
+    .select('*')
+    .or(`company_user_id.eq.${profileId},consultant_user_id.eq.${profileId}`)
+    .order('last_message_at', { ascending: false, nullsFirst: false });
+
+  if (error) {
+    throw error;
   }
 
-  return thread
-    .map((item) => {
-      if (!item || typeof item !== 'object') {
-        return null;
-      }
-      const candidate = item as Partial<MessageThreadItem>;
-      if (!candidate.id || !candidate.text || !candidate.createdAt) {
-        return null;
-      }
+  return (data ?? []) as ConversationRow[];
+}
 
-      return {
-        id: candidate.id,
-        text: candidate.text,
-        time: candidate.time ?? formatTimeLabel(candidate.createdAt),
-        isOwn: Boolean(candidate.isOwn),
-        createdAt: candidate.createdAt,
-      } satisfies MessageThreadItem;
+async function getLatestMessagesByConversation(
+  conversationIds: string[],
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  if (conversationIds.length === 0) {
+    return new Map<string, DirectMessageRow>();
+  }
+
+  const { data, error } = await db
+    .from('direct_messages')
+    .select('*')
+    .in('conversation_id', conversationIds)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data ?? []) as DirectMessageRow[]).reduce<Map<string, DirectMessageRow>>((acc, message) => {
+    acc.set(message.conversation_id, message);
+    return acc;
+  }, new Map());
+}
+
+export async function getOrCreateConversation(
+  profileId: string,
+  consultantId: string,
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  const dbAdmin = getDatabaseClient();
+  const [profileResult, consultantResult, existingResult] = await Promise.all([
+    dbAdmin.from('profiles').select('id, user_type').eq('id', profileId).maybeSingle(),
+    dbAdmin.from('consultants').select('id').eq('id', consultantId).maybeSingle(),
+    db
+      .from('conversations')
+      .select('*')
+      .eq('company_user_id', profileId)
+      .eq('consultant_user_id', consultantId)
+      .maybeSingle(),
+  ]);
+
+  if (profileResult.error) {
+    throw profileResult.error;
+  }
+  if (consultantResult.error) {
+    throw consultantResult.error;
+  }
+  if (existingResult.error) {
+    throw existingResult.error;
+  }
+
+  const profile = profileResult.data as Pick<ProfileRow, 'id' | 'user_type'> | null;
+  if (!profile || profile.user_type !== 'EMPRESA') {
+    throw createRuntimeError(
+      'Solo una empresa autenticada puede iniciar una conversación desde el directorio.',
+      403,
+    );
+  }
+
+  if (!consultantResult.data) {
+    throw createRuntimeError('No encontramos el consultor seleccionado.', 404);
+  }
+
+  const existing = existingResult.data as ConversationRow | null;
+  if (existing) {
+    return existing;
+  }
+
+  const { data, error } = await db
+    .from('conversations')
+    .insert({
+      company_user_id: profileId,
+      consultant_user_id: consultantId,
+      last_message_at: new Date().toISOString(),
     })
-    .filter((item): item is MessageThreadItem => Boolean(item));
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as ConversationRow;
 }
 
-export async function listConversations(profileId: string): Promise<ConversationPreview[]> {
-  const consultants = await getConsultants();
-  const metadata = await readUserMetadata(profileId);
+export async function listConversations(
+  profileId: string,
+  db: SupabaseClient = getDatabaseClient(),
+): Promise<ConversationPreview[]> {
+  const conversations = await getConversationRows(profileId, db);
+  const latestMessages = await getLatestMessagesByConversation(
+    conversations.map((conversation) => conversation.id),
+    db,
+  );
+  const [consultants, companies] = await Promise.all([getConsultants(), getCompanies()]);
+  const consultantsById = new Map(consultants.map((consultant) => [consultant.id, consultant]));
+  const companiesById = new Map(companies.map((company) => [company.id, company]));
 
-  return consultants.map((consultant, index) => {
-    const storedThread = getStoredThreadMessages(metadata as Record<string, unknown>, consultant.id);
-    const latestMessage = storedThread?.[storedThread.length - 1];
+  return conversations.map((conversation) => {
+    const isCompany = conversation.company_user_id === profileId;
+    const counterpartConsultant = consultantsById.get(conversation.consultant_user_id);
+    const counterpartCompany = companiesById.get(conversation.company_user_id);
+    const latestMessage = latestMessages.get(conversation.id);
 
     return {
-      id: consultant.id,
-      consultantId: consultant.id,
-      name: consultant.name,
-      role: consultant.role,
-      avatar: consultant.image,
-      lastMessage:
-        latestMessage?.text ??
-        `Tengo disponibilidad para conversar sobre ${consultant.expertise[0] ?? 'estrategia'} y el alcance del reto.`,
-      time: latestMessage ? formatRelativeLabel(latestMessage.createdAt) : ['Hace 5 min', 'Hace 30 min', 'Hace 2 horas', 'Ayer', 'Hace 2 dias'][index] ?? 'Esta semana',
-      unread: latestMessage?.isOwn ? 0 : index === 0 ? 2 : 0,
-      online: index % 2 === 0,
+      id: conversation.id,
+      consultantId: conversation.consultant_user_id,
+      name: isCompany
+        ? counterpartConsultant?.name ?? 'Consultor Nexora'
+        : counterpartCompany?.name ?? 'Empresa Nexora',
+      role: isCompany
+        ? counterpartConsultant?.role ?? 'Consultor estrategico'
+        : 'Empresa',
+      avatar: isCompany
+        ? counterpartConsultant?.image ?? buildAvatar('Consultor Nexora')
+        : counterpartCompany?.image ?? buildAvatar('Empresa Nexora'),
+      lastMessage: latestMessage?.content ?? 'Aún no hay mensajes en esta conversación.',
+      time: latestMessage ? formatRelativeLabel(latestMessage.created_at) : 'Ahora',
+      unread: 0,
+      online: false,
     };
   });
+}
+
+async function resolveConversationForParticipant(
+  profileId: string,
+  conversationId: string,
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  const { data, error } = await db
+    .from('conversations')
+    .select('*')
+    .eq('id', conversationId)
+    .or(`company_user_id.eq.${profileId},consultant_user_id.eq.${profileId}`)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? null) as ConversationRow | null;
 }
 
 export async function getConversationThread(
   profileId: string,
   conversationId: string,
+  db: SupabaseClient = getDatabaseClient(),
 ): Promise<ConversationThread> {
-  const consultants = await getConsultants();
-  const consultant = consultants.find((item) => item.id === conversationId);
+  const conversation = await resolveConversationForParticipant(profileId, conversationId, db);
 
-  if (!consultant) {
+  if (!conversation) {
     throw createRuntimeError('No encontramos la conversación solicitada.', 404);
   }
 
-  const metadata = await readUserMetadata(profileId);
-  const storedMessages = getStoredThreadMessages(metadata as Record<string, unknown>, conversationId);
-  const items = storedMessages ?? getDefaultConversationMessages(consultant);
+  const { data, error } = await db
+    .from('direct_messages')
+    .select('*')
+    .eq('conversation_id', conversation.id)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  const items = ((data ?? []) as DirectMessageRow[]).map((message) => ({
+    id: message.id,
+    text: message.content,
+    time: formatTimeLabel(message.created_at),
+    isOwn: message.sender_id === profileId,
+    createdAt: message.created_at,
+  }));
 
   return {
-    conversationId,
+    conversationId: conversation.id,
     items,
-    source: storedMessages ? 'auth-metadata' : 'derived-demo',
-    persistent: Boolean(storedMessages),
+    source: 'supabase',
+    persistent: true,
   };
 }
 
-export async function sendConversationMessage(input: {
-  profileId: string;
-  conversationId: string;
-  text: string;
-}) {
-  const currentThread = await getConversationThread(input.profileId, input.conversationId);
-  const newMessage: MessageThreadItem = {
-    id: `${input.conversationId}-${Date.now()}`,
-    text: input.text.trim(),
-    time: formatTimeLabel(new Date().toISOString()),
-    isOwn: true,
-    createdAt: new Date().toISOString(),
-  };
+export async function sendConversationMessage(
+  input: {
+    profileId: string;
+    conversationId: string;
+    text: string;
+  },
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  let conversation = await resolveConversationForParticipant(input.profileId, input.conversationId, db);
 
-  await patchUserMetadata(input.profileId, (metadata) => {
-    const currentThreads = (metadata.messageThreads ?? {}) as Record<string, unknown>;
-    const currentItems = currentThread.items.map(toStoredMessage);
+  if (!conversation) {
+    conversation = await getOrCreateConversation(input.profileId, input.conversationId, db);
+  }
 
-    return {
-      ...metadata,
-      messageThreads: {
-        ...currentThreads,
-        [input.conversationId]: [...currentItems, newMessage],
-      },
-    };
+  const createdAt = new Date().toISOString();
+  const { error } = await db.from('direct_messages').insert({
+    conversation_id: conversation.id,
+    sender_id: input.profileId,
+    content: input.text.trim(),
+    created_at: createdAt,
   });
 
-  return getConversationThread(input.profileId, input.conversationId);
+  if (error) {
+    throw error;
+  }
+
+  const { error: conversationError } = await db
+    .from('conversations')
+    .update({ last_message_at: createdAt })
+    .eq('id', conversation.id);
+
+  if (conversationError) {
+    throw conversationError;
+  }
+
+  return getConversationThread(input.profileId, conversation.id, db);
 }
 
-export async function listAppointments(profileId: string): Promise<AppointmentSummary[]> {
+export async function listAppointments(
+  profileId: string,
+  db: SupabaseClient = getDatabaseClient(),
+): Promise<AppointmentSummary[]> {
+  const { data, error } = await db
+    .from('appointments')
+    .select('*')
+    .or(`requester_id.eq.${profileId},consultant_profile_id.eq.${profileId}`)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
   const consultants = await getConsultants();
-  const metadata = await readUserMetadata(profileId);
-  const appointments = Array.isArray(metadata.appointments) ? metadata.appointments : [];
+  const consultantsById = new Map(consultants.map((consultant) => [consultant.id, consultant]));
 
-  return appointments
-    .map((item) => {
-      if (!item || typeof item !== 'object') {
-        return null;
-      }
-
-      const candidate = item as Partial<AppointmentSummary>;
-      const consultant = consultants.find((entry) => entry.id === candidate.consultantId);
-
-      if (!candidate.id || !candidate.consultantId || !candidate.requestedAt) {
-        return null;
-      }
-
-      return {
-        id: candidate.id,
-        consultantId: candidate.consultantId,
-        consultantName: consultant?.name ?? candidate.consultantName ?? 'Consultor Nexora',
-        requestedAt: candidate.requestedAt,
-        note: candidate.note ?? '',
-        status: candidate.status ?? 'pendiente',
-        createdAt: candidate.createdAt ?? new Date().toISOString(),
-      } satisfies AppointmentSummary;
-    })
-    .filter((item): item is AppointmentSummary => Boolean(item));
+  return ((data ?? []) as AppointmentRow[]).map((appointment) => ({
+    id: appointment.id,
+    consultantId: appointment.consultant_profile_id,
+    consultantName:
+      consultantsById.get(appointment.consultant_profile_id)?.name ?? 'Consultor Nexora',
+    requestedAt: appointment.requested_at,
+    note: appointment.note ?? '',
+    status: appointment.status ?? 'pendiente',
+    createdAt: appointment.created_at,
+  }));
 }
 
-export async function scheduleAppointment(input: {
-  profileId: string;
-  consultantId: string;
-  requestedAt: string;
-  note?: string | null;
-}) {
-  const consultants = await getConsultants();
-  const consultant = consultants.find((item) => item.id === input.consultantId);
+export async function scheduleAppointment(
+  input: {
+    profileId: string;
+    consultantId: string;
+    requestedAt: string;
+    note?: string | null;
+  },
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  const { data: consultantData, error: consultantError } = await getDatabaseClient()
+    .from('consultants')
+    .select('id')
+    .eq('id', input.consultantId)
+    .maybeSingle();
 
-  if (!consultant) {
+  if (consultantError) {
+    throw consultantError;
+  }
+
+  if (!consultantData) {
     throw createRuntimeError('No encontramos el consultor seleccionado para agendar.', 404);
   }
 
-  const appointment: AppointmentSummary = {
-    id: `appointment-${Date.now()}`,
-    consultantId: consultant.id,
-    consultantName: consultant.name,
-    requestedAt: input.requestedAt,
-    note: input.note ?? '',
-    status: 'pendiente',
-    createdAt: new Date().toISOString(),
+  const { data, error } = await db
+    .from('appointments')
+    .insert({
+      requester_id: input.profileId,
+      consultant_profile_id: input.consultantId,
+      requested_at: input.requestedAt,
+      note: input.note ?? '',
+      status: 'pendiente',
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const appointment = data as AppointmentRow;
+  const consultants = await getConsultants();
+  const consultant = consultants.find((item) => item.id === appointment.consultant_profile_id);
+
+  return {
+    id: appointment.id,
+    consultantId: appointment.consultant_profile_id,
+    consultantName: consultant?.name ?? 'Consultor Nexora',
+    requestedAt: appointment.requested_at,
+    note: appointment.note ?? '',
+    status: appointment.status ?? 'pendiente',
+    createdAt: appointment.created_at,
   };
-
-  await patchUserMetadata(input.profileId, (metadata) => {
-    const current = Array.isArray(metadata.appointments) ? metadata.appointments : [];
-
-    return {
-      ...metadata,
-      appointments: [...current, appointment],
-    };
-  });
-
-  return appointment;
 }
