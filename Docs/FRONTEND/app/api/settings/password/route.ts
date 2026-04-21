@@ -1,16 +1,21 @@
 import { NextResponse } from 'next/server';
-import { updateUserPassword } from '../../../../src/lib/backend-data';
+import { getAuthenticatedContext, updateUserPassword } from '../../../../src/lib/backend-data';
+
+function getErrorStatus(error: unknown) {
+  return typeof error === 'object' && error && 'status' in error && typeof error.status === 'number'
+    ? error.status
+    : 500;
+}
 
 export async function PUT(request: Request) {
   try {
     const body = (await request.json()) as {
-      profileId?: string;
       newPassword?: string;
     };
 
-    if (!body.profileId || !body.newPassword) {
+    if (!body.newPassword) {
       return NextResponse.json(
-        { error: 'profileId y newPassword son obligatorios.' },
+        { error: 'newPassword es obligatorio.' },
         { status: 400 },
       );
     }
@@ -22,13 +27,14 @@ export async function PUT(request: Request) {
       );
     }
 
-    const result = await updateUserPassword(body.profileId, body.newPassword);
+    const context = await getAuthenticatedContext();
+    const result = await updateUserPassword(context.user.id, body.newPassword);
     return NextResponse.json(result);
   } catch (error) {
     console.error('PUT /api/settings/password failed', error);
     return NextResponse.json(
-      { error: 'No pudimos cambiar la contraseña del usuario.' },
-      { status: 500 },
+      { error: error instanceof Error ? error.message : 'No pudimos cambiar la contraseña del usuario.' },
+      { status: getErrorStatus(error) },
     );
   }
 }

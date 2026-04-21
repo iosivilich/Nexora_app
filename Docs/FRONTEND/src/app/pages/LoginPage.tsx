@@ -10,7 +10,8 @@ import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
-import { Building2, Briefcase } from 'lucide-react';
+import { Building2, Briefcase, Camera } from 'lucide-react';
+import { clearPendingAvatar, storePendingAvatar, validateAvatarFile } from '../../lib/pending-avatar';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -20,6 +21,8 @@ export function LoginPage() {
   const [userType, setUserType] = useState<'EMPRESA' | 'CONSULTOR' | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState('');
   const router = useRouter();
   const { user } = useAuth();
 
@@ -29,12 +32,51 @@ export function LoginPage() {
     }
   }, [user, router]);
 
+  useEffect(() => {
+    return () => {
+      if (avatarPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(avatarPreviewUrl);
+      }
+    };
+  }, [avatarPreviewUrl]);
+
   const normalizeCity = (val: string) => {
     return val
       .trim()
       .split(/[\s-]+/)
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ');
+  };
+
+  const resetAvatarSelection = () => {
+    if (avatarPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(avatarPreviewUrl);
+    }
+
+    setAvatarFile(null);
+    setAvatarPreviewUrl('');
+  };
+
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const validationError = validateAvatarFile(file);
+    if (validationError) {
+      toast.error(validationError);
+      event.target.value = '';
+      return;
+    }
+
+    if (avatarPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(avatarPreviewUrl);
+    }
+
+    setAvatarFile(file);
+    setAvatarPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleEmailAuth = async (e: React.FormEvent) => {
@@ -49,9 +91,15 @@ export function LoginPage() {
 
     setIsLoading(true);
     const normalizedCity = normalizeCity(city);
+    let pendingAvatarStored = false;
 
     try {
       if (isSignUp) {
+        if (avatarFile) {
+          await storePendingAvatar(avatarFile, email);
+          pendingAvatarStored = true;
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -64,7 +112,11 @@ export function LoginPage() {
           }
         });
         if (error) throw error;
-        toast.success('¡Registro exitoso! Revisa tu correo por favor.');
+        toast.success(
+          avatarFile
+            ? '¡Registro exitoso! Tu foto se sincronizará cuando ingreses.'
+            : '¡Registro exitoso! Revisa tu correo por favor.',
+        );
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -75,6 +127,9 @@ export function LoginPage() {
         router.push('/');
       }
     } catch (error: any) {
+      if (pendingAvatarStored) {
+        clearPendingAvatar();
+      }
       toast.error(error.message || 'Error en la autenticación');
     } finally {
       setIsLoading(false);
@@ -97,6 +152,11 @@ export function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  const previewSeed = fullName.trim() || email.trim() || 'Nexora';
+  const previewImage =
+    avatarPreviewUrl ||
+    `https://ui-avatars.com/api/?background=0A1F44&color=FFFFFF&bold=true&name=${encodeURIComponent(previewSeed)}`;
 
   return (
     <div className="min-h-[90vh] flex items-center justify-center px-4 py-8">
@@ -121,28 +181,56 @@ export function LoginPage() {
             
             <form onSubmit={handleEmailAuth} className="space-y-4 text-left mb-8">
               {isSignUp && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName" className="text-white/80 ml-1 font-semibold text-xs uppercase tracking-wider">Nombre Completo *</Label>
-                    <Input
-                      id="fullName"
-                      placeholder="Ej: Carlos Ruiz"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      required={isSignUp}
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30 h-11 rounded-xl focus:border-[#2563EB]/50"
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
+                  <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-5 py-6">
+                    <img
+                      src={previewImage}
+                      alt="Vista previa del avatar"
+                      className="h-24 w-24 rounded-full object-cover border-4 border-white/10 shadow-lg shadow-black/20"
+                    />
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-white">Foto de perfil</p>
+                      <p className="text-xs text-white/50">Opcional. JPG, PNG o WEBP hasta 5 MB.</p>
+                    </div>
+                    <label
+                      htmlFor="avatar"
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
+                    >
+                      <Camera className="h-4 w-4" />
+                      Elegir foto
+                    </label>
+                    <input
+                      id="avatar"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={handleAvatarChange}
+                      className="sr-only"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="city" className="text-white/80 ml-1 font-semibold text-xs uppercase tracking-wider">Ciudad *</Label>
-                    <Input
-                      id="city"
-                      placeholder="Ej: Madrid"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      required={isSignUp}
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30 h-11 rounded-xl focus:border-[#2563EB]/50"
-                    />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="fullName" className="text-white/80 ml-1 font-semibold text-xs uppercase tracking-wider">Nombre Completo *</Label>
+                      <Input
+                        id="fullName"
+                        placeholder="Ej: Carlos Ruiz"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        required={isSignUp}
+                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 h-11 rounded-xl focus:border-[#2563EB]/50"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="city" className="text-white/80 ml-1 font-semibold text-xs uppercase tracking-wider">Ciudad *</Label>
+                      <Input
+                        id="city"
+                        placeholder="Ej: Madrid"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        required={isSignUp}
+                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 h-11 rounded-xl focus:border-[#2563EB]/50"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -251,6 +339,7 @@ export function LoginPage() {
                   onClick={() => {
                     setIsSignUp(!isSignUp);
                     setUserType(null);
+                    resetAvatarSelection();
                   }}
                   className="ml-2 text-[#2563EB] font-bold hover:underline"
                 >

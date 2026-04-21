@@ -1,22 +1,26 @@
 import { NextResponse } from 'next/server';
-import { getProfileDetails, updateProfileDetails } from '../../../../src/lib/backend-data';
+import {
+  getAuthenticatedContext,
+  getCurrentProfileDetails,
+  updateProfileDetails,
+} from '../../../../src/lib/backend-data';
 
-export async function GET(request: Request) {
+function getErrorStatus(error: unknown) {
+  return typeof error === 'object' && error && 'status' in error && typeof error.status === 'number'
+    ? error.status
+    : 500;
+}
+
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const profileId = searchParams.get('profileId');
-
-    if (!profileId) {
-      return NextResponse.json({ error: 'profileId es obligatorio.' }, { status: 400 });
-    }
-
-    const profile = await getProfileDetails(profileId);
+    const context = await getAuthenticatedContext();
+    const profile = await getCurrentProfileDetails(context);
     return NextResponse.json(profile);
   } catch (error) {
     console.error('GET /api/profile/me failed', error);
     return NextResponse.json(
-      { error: 'No pudimos cargar el perfil solicitado.' },
-      { status: 500 },
+      { error: error instanceof Error ? error.message : 'No pudimos cargar el perfil solicitado.' },
+      { status: getErrorStatus(error) },
     );
   }
 }
@@ -24,7 +28,6 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = (await request.json()) as {
-      profileId?: string;
       fullName?: string;
       city?: string;
       avatarUrl?: string;
@@ -34,12 +37,10 @@ export async function PUT(request: Request) {
       expertise?: string[];
     };
 
-    if (!body.profileId) {
-      return NextResponse.json({ error: 'profileId es obligatorio.' }, { status: 400 });
-    }
+    const context = await getAuthenticatedContext();
 
     const profile = await updateProfileDetails({
-      profileId: body.profileId,
+      profileId: context.user.id,
       fullName: body.fullName,
       city: body.city,
       avatarUrl: body.avatarUrl,
@@ -47,14 +48,14 @@ export async function PUT(request: Request) {
       role: body.role,
       bio: body.bio,
       expertise: body.expertise,
-    });
+    }, context.routeClient);
 
     return NextResponse.json(profile);
   } catch (error) {
     console.error('PUT /api/profile/me failed', error);
     return NextResponse.json(
-      { error: 'No pudimos actualizar el perfil.' },
-      { status: 500 },
+      { error: error instanceof Error ? error.message : 'No pudimos actualizar el perfil.' },
+      { status: getErrorStatus(error) },
     );
   }
 }

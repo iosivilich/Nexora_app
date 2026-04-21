@@ -1,6 +1,6 @@
 'use client';
 
-import { Home, Search, Users, MessageSquare, Briefcase, TrendingUp, Handshake, SearchCode } from 'lucide-react';
+import { Home, Search, Users, MessageSquare, Briefcase, Handshake, SearchCode } from 'lucide-react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -8,11 +8,11 @@ import { useAuth } from '../context/AuthContext';
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   
   if (authLoading) return <div className="hidden lg:flex w-72 h-full border-r border-white/10 bg-black/20" />;
 
-  const isConsultant = (profile?.user_type || user?.user_metadata?.user_type) === 'CONSULTOR';
+  const isConsultant = profile?.userType === 'CONSULTOR';
 
   const navItems = [
     { id: 'home', path: '/', icon: Home, label: 'Inicio' },

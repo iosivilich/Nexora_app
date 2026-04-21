@@ -67,12 +67,40 @@ export async function fetchDashboard() {
   return getJson<DashboardSnapshot>('/api/dashboard');
 }
 
-export async function fetchChallenges() {
-  return getJson<ListResponse<ChallengeSummary>>('/api/challenges');
+export async function fetchChallenges(params?: {
+  scope?: 'mine';
+  idEmpresa?: number;
+  status?: string;
+  mode?: string;
+  limit?: number;
+}) {
+  const searchParams = new URLSearchParams();
+
+  if (params?.scope) {
+    searchParams.set('scope', params.scope);
+  }
+
+  if (typeof params?.idEmpresa === 'number') {
+    searchParams.set('idEmpresa', String(params.idEmpresa));
+  }
+
+  if (params?.status) {
+    searchParams.set('status', params.status);
+  }
+
+  if (params?.mode) {
+    searchParams.set('mode', params.mode);
+  }
+
+  if (typeof params?.limit === 'number') {
+    searchParams.set('limit', String(params.limit));
+  }
+
+  const query = searchParams.toString();
+  return getJson<ListResponse<ChallengeSummary>>(`/api/challenges${query ? `?${query}` : ''}`);
 }
 
 export async function createChallenge(input: {
-  idEmpresa: number;
   title: string;
   description: string;
   specialty: string;
@@ -91,6 +119,7 @@ export async function createChallenge(input: {
 
 export async function fetchApplications(params: {
   idConsultor?: number;
+  idEmpresa?: number;
   idDesafio?: number;
   status?: string;
 }) {
@@ -98,6 +127,10 @@ export async function fetchApplications(params: {
 
   if (typeof params.idConsultor === 'number') {
     searchParams.set('idConsultor', String(params.idConsultor));
+  }
+
+  if (typeof params.idEmpresa === 'number') {
+    searchParams.set('idEmpresa', String(params.idEmpresa));
   }
 
   if (typeof params.idDesafio === 'number') {
@@ -114,7 +147,6 @@ export async function fetchApplications(params: {
 
 export async function createApplication(input: {
   idDesafio: number;
-  idConsultor: number;
   coverLetter: string;
   proposedBudget?: number | null;
   status?: string | null;
@@ -128,12 +160,11 @@ export async function createApplication(input: {
   });
 }
 
-export async function fetchProfile(profileId: string) {
-  return getJson<ProfileDetails>(`/api/profile/me?profileId=${encodeURIComponent(profileId)}`);
+export async function fetchProfile() {
+  return getJson<ProfileDetails>('/api/profile/me');
 }
 
 export async function updateProfile(input: {
-  profileId: string;
   fullName?: string;
   city?: string;
   avatarUrl?: string;
@@ -150,36 +181,42 @@ export async function updateProfile(input: {
   });
 }
 
-export async function fetchSettings(profileId: string) {
-  return getJson<UserSettings>(`/api/settings?profileId=${encodeURIComponent(profileId)}`);
+export async function uploadProfileAvatar(file: File) {
+  const formData = new FormData();
+  formData.set('avatar', file);
+
+  return getJson<ProfileDetails>('/api/profile/avatar', {
+    method: 'POST',
+    body: formData,
+  });
 }
 
-export async function updateSettings(profileId: string, settings: Partial<UserSettings>) {
+export async function fetchSettings() {
+  return getJson<UserSettings>('/api/settings');
+}
+
+export async function updateSettings(settings: Partial<UserSettings>) {
   return getJson<UserSettings>('/api/settings', {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ profileId, settings }),
+    body: JSON.stringify({ settings }),
   });
 }
 
-export async function updatePassword(profileId: string, newPassword: string) {
+export async function updatePassword(newPassword: string) {
   return getJson<{ ok: true }>('/api/settings/password', {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ profileId, newPassword }),
+    body: JSON.stringify({ newPassword }),
   });
 }
 
-export async function fetchAnalytics(profileId?: string, idEmpresa?: number, idConsultor?: number) {
+export async function fetchAnalytics(idEmpresa?: number, idConsultor?: number) {
   const searchParams = new URLSearchParams();
-
-  if (profileId) {
-    searchParams.set('profileId', profileId);
-  }
 
   if (typeof idEmpresa === 'number') {
     searchParams.set('idEmpresa', String(idEmpresa));
@@ -189,67 +226,77 @@ export async function fetchAnalytics(profileId?: string, idEmpresa?: number, idC
     searchParams.set('idConsultor', String(idConsultor));
   }
 
-  return getJson<AnalyticsStats>(`/api/analytics/stats?${searchParams.toString()}`);
+  const query = searchParams.toString();
+  return getJson<AnalyticsStats>(`/api/analytics/stats${query ? `?${query}` : ''}`);
 }
 
-export async function fetchConnections(profileId: string) {
-  return getJson<NetworkCollection>(`/api/network/connections?profileId=${encodeURIComponent(profileId)}`);
+export async function fetchConnections() {
+  return getJson<NetworkCollection>('/api/network/connections');
 }
 
-export async function addConnection(profileId: string, consultantId: string) {
+export async function addConnection(consultantId: string) {
   return getJson<NetworkCollection>('/api/network/connections', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ profileId, consultantId }),
+    body: JSON.stringify({ consultantId }),
   });
 }
 
-export async function removeConnection(profileId: string, consultantId: string) {
-  return getJson<NetworkCollection>(`/api/network/connections?profileId=${encodeURIComponent(profileId)}&consultantId=${encodeURIComponent(consultantId)}`, {
+export async function removeConnection(consultantId: string) {
+  return getJson<NetworkCollection>(`/api/network/connections?consultantId=${encodeURIComponent(consultantId)}`, {
     method: 'DELETE',
   });
 }
 
-export async function fetchFavorites(profileId: string) {
-  return getJson<NetworkCollection>(`/api/network/favorites?profileId=${encodeURIComponent(profileId)}`);
+export async function fetchFavorites() {
+  return getJson<NetworkCollection>('/api/network/favorites');
 }
 
-export async function toggleFavorite(profileId: string, consultantId: string) {
+export async function toggleFavorite(consultantId: string) {
   return getJson<NetworkCollection>('/api/network/favorites', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ profileId, consultantId }),
+    body: JSON.stringify({ consultantId }),
   });
 }
 
-export async function fetchConversations(profileId: string) {
-  return getJson<ListResponse<ConversationPreview>>(`/api/messages/conversations?profileId=${encodeURIComponent(profileId)}`);
+export async function fetchConversations() {
+  return getJson<ListResponse<ConversationPreview>>('/api/messages/conversations');
 }
 
-export async function fetchMessageThread(profileId: string, conversationId: string) {
-  return getJson<ConversationThread>(`/api/messages/thread?profileId=${encodeURIComponent(profileId)}&conversationId=${encodeURIComponent(conversationId)}`);
+export async function ensureConversation(consultantId: string) {
+  return getJson<{ id: string }>('/api/messages/conversations', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ consultantId }),
+  });
 }
 
-export async function sendMessage(profileId: string, conversationId: string, text: string) {
+export async function fetchMessageThread(conversationId: string) {
+  return getJson<ConversationThread>(`/api/messages/thread?conversationId=${encodeURIComponent(conversationId)}`);
+}
+
+export async function sendMessage(conversationId: string, text: string) {
   return getJson<ConversationThread>('/api/messages/send', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ profileId, conversationId, text }),
+    body: JSON.stringify({ conversationId, text }),
   });
 }
 
-export async function fetchAppointments(profileId: string) {
-  return getJson<ListResponse<AppointmentSummary>>(`/api/appointments?profileId=${encodeURIComponent(profileId)}`);
+export async function fetchAppointments() {
+  return getJson<ListResponse<AppointmentSummary>>('/api/appointments');
 }
 
 export async function createAppointment(input: {
-  profileId: string;
   consultantId: string;
   requestedAt: string;
   note?: string | null;

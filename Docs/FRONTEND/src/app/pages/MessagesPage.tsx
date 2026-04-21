@@ -1,166 +1,158 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Search, Send, Paperclip, MoreVertical, CheckCheck } from 'lucide-react';
+import { Search, Send, MoreVertical } from 'lucide-react';
+import { toast } from 'sonner';
+import { useSearchParams } from 'next/navigation';
 import { GlassCard } from '../components/GlassCard';
-import { fetchConsultants } from '../../lib/api';
-import type { ConsultantDirectoryItem } from '../../lib/backend-types';
+import {
+  ensureConversation,
+  fetchConversations,
+  fetchMessageThread,
+  sendMessage,
+} from '../../lib/api';
+import type { ConversationPreview, ConversationThread } from '../../lib/backend-types';
 
-interface ConversationItem {
-  id: string;
-  name: string;
-  role: string;
-  avatar: string;
-  lastMessage: string;
-  time: string;
-  unread: number;
-  online: boolean;
-  consultant: ConsultantDirectoryItem;
-}
-
-interface ChatMessage {
-  id: string;
-  text: string;
-  time: string;
-  isOwn: boolean;
-}
-
-const previewTimes = ['Hace 5 min', 'Hace 30 min', 'Hace 2 horas', 'Ayer', 'Hace 2 días'];
-
-function buildConversationPreview(consultant: ConsultantDirectoryItem, index: number): ConversationItem {
-  const mainExpertise = consultant.expertise[0] ?? 'estrategia';
-
-  return {
-    id: consultant.id,
-    name: consultant.name,
-    role: consultant.role,
-    avatar: consultant.image,
-    lastMessage: `Tengo disponibilidad para conversar sobre ${mainExpertise.toLowerCase()} y el alcance del reto.`,
-    time: previewTimes[index] ?? 'Esta semana',
-    unread: index === 0 ? 2 : index === 1 ? 1 : 0,
-    online: index % 2 === 0,
-    consultant,
-  };
-}
-
-function buildInitialMessages(conversation: ConversationItem | null): ChatMessage[] {
-  if (!conversation) {
-    return [];
-  }
-
-  return [
-    {
-      id: `${conversation.id}-1`,
-      text: `Hola, soy ${conversation.name}. Vi que estás explorando perfiles para nuevos retos en Nexora.`,
-      time: '10:30 AM',
-      isOwn: false,
-    },
-    {
-      id: `${conversation.id}-2`,
-      text: 'Perfecto. Quiero entender mejor tu experiencia y el tipo de proyectos donde generas más impacto.',
-      time: '10:35 AM',
-      isOwn: true,
-    },
-    {
-      id: `${conversation.id}-3`,
-      text: `Puedo ayudarte especialmente en ${conversation.consultant.expertise.join(', ')} y compartir casos recientes.`,
-      time: '10:37 AM',
-      isOwn: false,
-    },
-  ];
-}
+const emptyThread: ConversationThread = {
+  conversationId: '',
+  items: [],
+  source: 'supabase',
+  persistent: true,
+};
 
 export function MessagesPage() {
-  const [consultants, setConsultants] = useState<ConsultantDirectoryItem[]>([]);
+  const searchParams = useSearchParams();
+  const consultantId = searchParams.get('consultantId');
+  const conversationIdFromUrl = searchParams.get('conversationId');
+  const [conversations, setConversations] = useState<ConversationPreview[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [thread, setThread] = useState<ConversationThread>(emptyThread);
   const [messageText, setMessageText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [messageStore, setMessageStore] = useState<Record<string, ChatMessage[]>>({});
   const [loading, setLoading] = useState(true);
+  const [threadLoading, setThreadLoading] = useState(false);
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const loadConversations = async (preferredConversationId?: string | null) => {
+    const response = await fetchConversations();
+    setConversations(response.items);
+
+    const nextSelected =
+      preferredConversationId ??
+      response.items[0]?.id ??
+      null;
+
+    setSelectedConversationId(nextSelected);
+    return nextSelected;
+  };
 
   useEffect(() => {
     let active = true;
 
-    fetchConsultants()
-      .then((response) => {
+    (async () => {
+      try {
+        let preferredConversationId = conversationIdFromUrl;
+
+        if (consultantId) {
+          const conversation = await ensureConversation(consultantId);
+          preferredConversationId = conversation.id;
+        }
+
+        const nextSelected = await loadConversations(preferredConversationId);
+        if (active && nextSelected) {
+          setThreadLoading(true);
+          const nextThread = await fetchMessageThread(nextSelected);
+          if (active) {
+            setThread(nextThread);
+          }
+        }
+      } catch (fetchError) {
         if (active) {
-          setConsultants(response.items);
+          setError(fetchError instanceof Error ? fetchError.message : 'No pudimos cargar las conversaciones.');
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+          setThreadLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [consultantId, conversationIdFromUrl]);
+
+  useEffect(() => {
+    if (!selectedConversationId || selectedConversationId === thread.conversationId) {
+      return;
+    }
+
+    let active = true;
+    setThreadLoading(true);
+
+    fetchMessageThread(selectedConversationId)
+      .then((nextThread) => {
+        if (active) {
+          setThread(nextThread);
         }
       })
       .catch((fetchError) => {
         if (active) {
-          setError(fetchError instanceof Error ? fetchError.message : 'No pudimos cargar los mensajes demo.');
+          setError(fetchError instanceof Error ? fetchError.message : 'No pudimos cargar el hilo.');
         }
       })
       .finally(() => {
         if (active) {
-          setLoading(false);
+          setThreadLoading(false);
         }
       });
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [selectedConversationId, thread.conversationId]);
 
-  const conversations = consultants.map((consultant, index) =>
-    buildConversationPreview(consultant, index),
-  );
-
-  useEffect(() => {
-    if (!selectedConversationId && conversations.length > 0) {
-      setSelectedConversationId(conversations[0].id);
-    }
-  }, [selectedConversationId, conversations]);
-
-  const filteredConversations = conversations.filter((conversation) =>
-    conversation.name.toLowerCase().includes(searchTerm.toLowerCase()),
+  const filteredConversations = useMemo(
+    () =>
+      conversations.filter((conversation) =>
+        conversation.name.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    [conversations, searchTerm],
   );
 
   const selectedConversation =
     conversations.find((conversation) => conversation.id === selectedConversationId) ?? null;
-  const visibleMessages =
-    (selectedConversation && messageStore[selectedConversation.id]) ??
-    buildInitialMessages(selectedConversation);
 
-  const handleSendMessage = () => {
-    if (!messageText.trim() || !selectedConversation) {
+  const handleSendMessage = async () => {
+    if (!selectedConversationId || !messageText.trim()) {
       return;
     }
 
-    const newMessage: ChatMessage = {
-      id: `${selectedConversation.id}-${Date.now()}`,
-      text: messageText.trim(),
-      time: 'Ahora',
-      isOwn: true,
-    };
+    setSending(true);
 
-    setMessageStore((current) => ({
-      ...current,
-      [selectedConversation.id]: [...visibleMessages, newMessage],
-    }));
-    setMessageText('');
+    try {
+      const nextThread = await sendMessage(selectedConversationId, messageText);
+      setThread(nextThread);
+      setMessageText('');
+      await loadConversations(selectedConversationId);
+    } catch (sendError) {
+      toast.error(sendError instanceof Error ? sendError.message : 'No pudimos enviar el mensaje.');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
         <div className="mb-8">
           <h1 className="text-4xl lg:text-5xl text-white mb-3" style={{ fontFamily: 'var(--font-secondary)' }}>
             Mensajes
           </h1>
-          <p className="text-lg text-white/70">
-            Comunícate con consultores y gestiona tus conversaciones
-          </p>
-          <p className="text-sm text-[#9CC2FF] mt-2">
-            Conversaciones demo construidas sobre perfiles reales cargados desde Supabase.
-          </p>
+          <p className="text-lg text-white/70">Conversaciones reales persistidas en Supabase</p>
         </div>
 
         {error && (
@@ -180,7 +172,7 @@ export function MessagesPage() {
                     placeholder="Buscar conversaciones..."
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 focus:outline-none focus:border-[#2563EB] transition-all"
+                    className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 focus:outline-none focus:border-[#2563EB]"
                   />
                 </div>
               </div>
@@ -200,17 +192,11 @@ export function MessagesPage() {
                           selectedConversation?.id === conversation.id ? 'bg-white/10' : ''
                         }`}
                       >
-                        <div className="relative flex-shrink-0">
-                          <img
-                            src={conversation.avatar}
-                            alt={conversation.name}
-                            className="w-12 h-12 rounded-full object-cover"
-                          />
-                          {conversation.online && (
-                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#22C55E] rounded-full border-2 border-[#0A1F44]" />
-                          )}
-                        </div>
-
+                        <img
+                          src={conversation.avatar}
+                          alt={conversation.name}
+                          className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                        />
                         <div className="flex-1 min-w-0 text-left">
                           <div className="flex items-center justify-between mb-1">
                             <h3 className="text-white truncate">{conversation.name}</h3>
@@ -219,14 +205,12 @@ export function MessagesPage() {
                           <p className="text-sm text-white/60 mb-1 truncate">{conversation.role}</p>
                           <p className="text-sm text-white/70 truncate">{conversation.lastMessage}</p>
                         </div>
-
-                        {conversation.unread > 0 && (
-                          <div className="flex-shrink-0 w-6 h-6 bg-[#2563EB] rounded-full flex items-center justify-center">
-                            <span className="text-xs text-white">{conversation.unread}</span>
-                          </div>
-                        )}
                       </button>
                     ))}
+
+                {!loading && filteredConversations.length === 0 && (
+                  <div className="p-6 text-white/60">Todavía no tienes conversaciones activas.</div>
+                )}
               </div>
             </GlassCard>
           </div>
@@ -237,16 +221,11 @@ export function MessagesPage() {
                 <>
                   <div className="p-4 border-b border-white/10 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <img
-                          src={selectedConversation.avatar}
-                          alt={selectedConversation.name}
-                          className="w-12 h-12 rounded-full object-cover"
-                        />
-                        {selectedConversation.online && (
-                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#22C55E] rounded-full border-2 border-[#0A1F44]" />
-                        )}
-                      </div>
+                      <img
+                        src={selectedConversation.avatar}
+                        alt={selectedConversation.name}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
                       <div>
                         <h3 className="text-white">{selectedConversation.name}</h3>
                         <p className="text-sm text-white/60">{selectedConversation.role}</p>
@@ -258,66 +237,64 @@ export function MessagesPage() {
                     </button>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {visibleMessages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${message.isOwn ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div className={`max-w-[70%] ${message.isOwn ? 'order-2' : 'order-1'}`}>
+                  <div className="flex-1 p-4 overflow-y-auto space-y-4">
+                    {threadLoading ? (
+                      Array.from({ length: 4 }).map((_, index) => (
+                        <div key={index} className="h-16 bg-white/5 rounded-2xl" />
+                      ))
+                    ) : thread.items.length === 0 ? (
+                      <div className="h-full flex items-center justify-center text-white/50">
+                        Aún no hay mensajes en esta conversación.
+                      </div>
+                    ) : (
+                      thread.items.map((message) => (
+                        <div
+                          key={message.id}
+                          className={`flex ${message.isOwn ? 'justify-end' : 'justify-start'}`}
+                        >
                           <div
-                            className={`px-4 py-3 rounded-2xl ${
+                            className={`max-w-[75%] px-4 py-3 rounded-2xl ${
                               message.isOwn
                                 ? 'bg-gradient-to-r from-[#2563EB] to-[#6D5EF3] text-white'
-                                : 'bg-white/10 text-white'
+                                : 'bg-white/5 border border-white/10 text-white'
                             }`}
                           >
                             <p className="text-sm">{message.text}</p>
-                          </div>
-                          <div className={`flex items-center gap-1 mt-1 px-2 ${message.isOwn ? 'justify-end' : 'justify-start'}`}>
-                            <span className="text-xs text-white/50">{message.time}</span>
-                            {message.isOwn && <CheckCheck className="w-4 h-4 text-[#22C55E]" />}
+                            <p className="text-[11px] mt-2 opacity-70">{message.time}</p>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
 
                   <div className="p-4 border-t border-white/10">
-                    <div className="flex items-end gap-3">
-                      <button className="p-3 hover:bg-white/5 rounded-lg transition-colors">
-                        <Paperclip className="w-5 h-5 text-white/60" />
-                      </button>
-
-                      <div className="flex-1">
-                        <textarea
-                          value={messageText}
-                          onChange={(event) => setMessageText(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' && !event.shiftKey) {
-                              event.preventDefault();
-                              handleSendMessage();
-                            }
-                          }}
-                          placeholder="Escribe un mensaje..."
-                          rows={1}
-                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-[#2563EB] transition-all resize-none"
-                        />
-                      </div>
-
+                    <div className="flex gap-3">
+                      <input
+                        type="text"
+                        value={messageText}
+                        onChange={(event) => setMessageText(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            void handleSendMessage();
+                          }
+                        }}
+                        placeholder="Escribe tu mensaje..."
+                        className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#2563EB]"
+                      />
                       <button
-                        onClick={handleSendMessage}
-                        disabled={!messageText.trim()}
-                        className="p-3 bg-gradient-to-r from-[#2563EB] to-[#6D5EF3] rounded-xl hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg shadow-[#2563EB]/30"
+                        onClick={() => void handleSendMessage()}
+                        disabled={sending || !messageText.trim()}
+                        className="px-5 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#6D5EF3] text-white disabled:opacity-50"
                       >
-                        <Send className="w-5 h-5 text-white" />
+                        <Send className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
                 </>
               ) : (
-                <div className="flex-1 flex items-center justify-center">
-                  <p className="text-white/50">Selecciona una conversación para empezar.</p>
+                <div className="h-full flex items-center justify-center text-white/50">
+                  Selecciona una conversación para comenzar.
                 </div>
               )}
             </GlassCard>

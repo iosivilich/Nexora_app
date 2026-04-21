@@ -28,7 +28,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile?.companyRecord?.idEmpresa) {
+    if (profile?.userType !== 'EMPRESA') {
       setError('No se pudo encontrar el ID de tu empresa. Por favor, contacta a soporte.');
       return;
     }
@@ -38,7 +38,6 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
 
     try {
       await createChallenge({
-        idEmpresa: profile.companyRecord.idEmpresa,
         title: formData.title,
         description: formData.description,
         specialty: formData.specialty,

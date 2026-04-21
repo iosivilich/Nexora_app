@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAnalyticsStats } from '../../../../src/lib/backend-data';
+import { getAnalyticsStats, getAuthenticatedContext } from '../../../../src/lib/backend-data';
 
 function toNumber(value: string | null) {
   if (!value) {
@@ -13,18 +13,24 @@ function toNumber(value: string | null) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const context = await getAuthenticatedContext();
     const stats = await getAnalyticsStats({
-      profileId: searchParams.get('profileId'),
-      idEmpresa: toNumber(searchParams.get('idEmpresa')),
-      idConsultor: toNumber(searchParams.get('idConsultor')),
+      profileId: context.user.id,
+      idEmpresa: toNumber(searchParams.get('idEmpresa')) ?? context.companyRecord?.id_empresa ?? null,
+      idConsultor: toNumber(searchParams.get('idConsultor')) ?? context.consultantRecord?.id_consultor ?? null,
     });
 
     return NextResponse.json(stats);
   } catch (error) {
     console.error('GET /api/analytics/stats failed', error);
     return NextResponse.json(
-      { error: 'No pudimos construir las métricas de analytics.' },
-      { status: 500 },
+      { error: error instanceof Error ? error.message : 'No pudimos construir las métricas de analytics.' },
+      {
+        status:
+          typeof error === 'object' && error && 'status' in error && typeof error.status === 'number'
+            ? error.status
+            : 500,
+      },
     );
   }
 }

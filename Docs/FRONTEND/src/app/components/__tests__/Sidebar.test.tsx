@@ -12,7 +12,9 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('../../context/AuthContext', () => ({
   useAuth: () => ({
-    profile: { user_type: 'EMPRESA' },
+    profile: { userType: 'EMPRESA' },
+    user: null,
+    loading: false,
   }),
 }));
 
@@ -29,7 +31,6 @@ describe('Sidebar', () => {
     expect(screen.getByText('Mi Red')).toBeInTheDocument();
     expect(screen.getByText('Proyectos Activos')).toBeInTheDocument();
     expect(screen.getByText('Mensajes')).toBeInTheDocument();
-    expect(screen.getByText('Analytics')).toBeInTheDocument();
   });
 
   it('renders correct href attributes', () => {

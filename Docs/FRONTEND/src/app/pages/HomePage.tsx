@@ -40,7 +40,7 @@ export function HomePage() {
   const [dashboard, setDashboard] = useState<DashboardSnapshot>(emptyDashboard);
   const [loading, setLoading] = useState(true);
 
-  const userRole = profile?.userType || profile?.user_type || user?.user_metadata?.user_type;
+  const userRole = profile?.userType || user?.user_metadata?.user_type;
   const hasRole = !!userRole;
   const isConsultant = userRole === 'CONSULTOR';
 

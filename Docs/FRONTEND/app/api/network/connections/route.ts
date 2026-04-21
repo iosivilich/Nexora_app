@@ -1,26 +1,27 @@
 import { NextResponse } from 'next/server';
 import {
   addNetworkConnection,
+  getAuthenticatedContext,
   listNetworkConnections,
   removeNetworkConnection,
 } from '../../../../src/lib/backend-data';
 
-export async function GET(request: Request) {
+function getErrorStatus(error: unknown) {
+  return typeof error === 'object' && error && 'status' in error && typeof error.status === 'number'
+    ? error.status
+    : 500;
+}
+
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const profileId = searchParams.get('profileId');
-
-    if (!profileId) {
-      return NextResponse.json({ error: 'profileId es obligatorio.' }, { status: 400 });
-    }
-
-    const collection = await listNetworkConnections(profileId);
+    const context = await getAuthenticatedContext();
+    const collection = await listNetworkConnections(context.user.id, context.routeClient);
     return NextResponse.json(collection);
   } catch (error) {
     console.error('GET /api/network/connections failed', error);
     return NextResponse.json(
-      { error: 'No pudimos cargar las conexiones del usuario.' },
-      { status: 500 },
+      { error: error instanceof Error ? error.message : 'No pudimos cargar las conexiones del usuario.' },
+      { status: getErrorStatus(error) },
     );
   }
 }
@@ -28,24 +29,24 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
-      profileId?: string;
       consultantId?: string;
     };
 
-    if (!body.profileId || !body.consultantId) {
+    if (!body.consultantId) {
       return NextResponse.json(
-        { error: 'profileId y consultantId son obligatorios.' },
+        { error: 'consultantId es obligatorio.' },
         { status: 400 },
       );
     }
 
-    const collection = await addNetworkConnection(body.profileId, body.consultantId);
+    const context = await getAuthenticatedContext();
+    const collection = await addNetworkConnection(context.user.id, body.consultantId, context.routeClient);
     return NextResponse.json(collection);
   } catch (error) {
     console.error('POST /api/network/connections failed', error);
     return NextResponse.json(
-      { error: 'No pudimos añadir la conexión.' },
-      { status: 500 },
+      { error: error instanceof Error ? error.message : 'No pudimos añadir la conexión.' },
+      { status: getErrorStatus(error) },
     );
   }
 }
@@ -53,23 +54,23 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const profileId = searchParams.get('profileId');
     const consultantId = searchParams.get('consultantId');
 
-    if (!profileId || !consultantId) {
+    if (!consultantId) {
       return NextResponse.json(
-        { error: 'profileId y consultantId son obligatorios.' },
+        { error: 'consultantId es obligatorio.' },
         { status: 400 },
       );
     }
 
-    const collection = await removeNetworkConnection(profileId, consultantId);
+    const context = await getAuthenticatedContext();
+    const collection = await removeNetworkConnection(context.user.id, consultantId, context.routeClient);
     return NextResponse.json(collection);
   } catch (error) {
     console.error('DELETE /api/network/connections failed', error);
     return NextResponse.json(
-      { error: 'No pudimos eliminar la conexión.' },
-      { status: 500 },
+      { error: error instanceof Error ? error.message : 'No pudimos eliminar la conexión.' },
+      { status: getErrorStatus(error) },
     );
   }
 }
