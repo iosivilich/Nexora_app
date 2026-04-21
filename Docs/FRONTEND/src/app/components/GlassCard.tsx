@@ -7,11 +7,13 @@ interface GlassCardProps {
   children: ReactNode;
   className?: string;
   hover?: boolean;
+  onClick?: () => void;
 }
 
-export function GlassCard({ children, className = '', hover = true }: GlassCardProps) {
+export function GlassCard({ children, className = '', hover = true, onClick }: GlassCardProps) {
   return (
     <motion.div
+      onClick={onClick}
       className={`rounded-xl backdrop-blur-xl border border-white/10 shadow-2xl ${className}`}
       style={{
         background: 'rgba(255, 255, 255, 0.05)',

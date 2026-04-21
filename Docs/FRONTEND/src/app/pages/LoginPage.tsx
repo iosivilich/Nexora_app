@@ -82,15 +82,19 @@ export function LoginPage() {
   };
 
   const handleGoogleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin,
-      },
-    });
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
 
-    if (error) {
+      if (error) throw error;
+    } catch (error: any) {
       toast.error('Error con Google: ' + error.message);
+      setIsLoading(false);
     }
   };
 

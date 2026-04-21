@@ -549,7 +549,7 @@ function normalizeSettings(input: unknown): UserSettings {
 export async function getConsultants(limit?: number) {
   let query = supabase
     .from('consultants')
-    .select('id, role, rating, projects, experience_years, age, bio, expertise, verified, profiles!inner(id, full_name, avatar_url, city, user_type)')
+    .select('id, role, rating, projects, experience_years, age, bio, expertise, verified, profiles!consultants_id_fkey!inner(id, full_name, avatar_url, city, user_type)')
     .order('rating', { ascending: false });
 
   if (limit) {
@@ -896,7 +896,7 @@ export async function getDemoSeedStatus(): Promise<SeedStatus> {
       .ilike('full_name', '(DEMO)%'),
     supabase
       .from('consultants')
-      .select('id, profiles!inner(full_name)')
+      .select('id, profiles!consultants_id_fkey!inner(full_name)')
       .order('rating', { ascending: false }),
   ]);
 
@@ -977,7 +977,7 @@ export async function getProfileDetails(profileId: string): Promise<ProfileDetai
     db.from('profiles').select('*').eq('id', profileId).maybeSingle(),
     db
       .from('consultants')
-      .select('id, role, rating, projects, experience_years, age, bio, expertise, verified, profiles!inner(id, full_name, avatar_url, city, user_type)')
+      .select('id, role, rating, projects, experience_years, age, bio, expertise, verified, profiles!consultants_id_fkey!inner(id, full_name, avatar_url, city, user_type)')
       .eq('id', profileId)
       .maybeSingle(),
   ]);
@@ -1043,6 +1043,7 @@ export async function updateProfileDetails(input: {
   fullName?: string | null;
   city?: string | null;
   avatarUrl?: string | null;
+  userType?: 'EMPRESA' | 'CONSULTOR' | null;
   role?: string | null;
   bio?: string | null;
   expertise?: string[] | null;
@@ -1062,9 +1063,23 @@ export async function updateProfileDetails(input: {
     profileUpdates.avatar_url = input.avatarUrl;
   }
 
+  if (input.userType) {
+    profileUpdates.user_type = input.userType;
+    // Sincronizar con metadata de auth para consistencia
+    if (supabaseAdmin) {
+      await patchUserMetadata(input.profileId, (metadata) => ({
+        ...metadata,
+        user_type: input.userType,
+      }));
+    }
+  }
+
   if (Object.keys(profileUpdates).length > 0) {
     profileUpdates.updated_at = new Date().toISOString();
-    const { error } = await db.from('profiles').update(profileUpdates).eq('id', input.profileId);
+    const { error } = await db.from('profiles').upsert({
+      id: input.profileId,
+      ...profileUpdates,
+    });
     if (error) {
       throw error;
     }
@@ -1082,7 +1097,10 @@ export async function updateProfileDetails(input: {
   }
   if (Object.keys(consultantUpdates).length > 0) {
     consultantUpdates.updated_at = new Date().toISOString();
-    const { error } = await db.from('consultants').update(consultantUpdates).eq('id', input.profileId);
+    const { error } = await db.from('consultants').upsert({
+      id: input.profileId,
+      ...consultantUpdates,
+    });
     if (error) {
       throw error;
     }

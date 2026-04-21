@@ -9,6 +9,7 @@ interface AuthContextType {
   user: User | null;
   profile: any | null;
   signOut: () => Promise<void>;
+  updateProfile: (updates: any) => Promise<void>;
   loading: boolean;
 }
 
@@ -71,12 +72,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateProfile = async (updates: any) => {
+    if (!user) return;
+
+    try {
+      const response = await fetch('/api/profile/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profileId: user.id,
+          ...updates,
+        }),
+      });
+
+      if (response.ok) {
+        const updatedProfile = await response.json();
+        setProfile(updatedProfile);
+      } else {
+        throw new Error('Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, profile, signOut, loading }}>
+    <AuthContext.Provider value={{ session, user, profile, signOut, updateProfile, loading }}>
       {children}
     </AuthContext.Provider>
   );

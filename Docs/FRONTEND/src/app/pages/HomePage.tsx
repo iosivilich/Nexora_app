@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { GlassCard } from '../components/GlassCard';
 import { ConsultantCard } from '../components/ConsultantCard';
 import { StatsCard } from '../components/StatsCard';
@@ -35,34 +36,34 @@ const emptyDashboard: DashboardSnapshot = {
 
 export function HomePage() {
   const { user, profile, loading: authLoading } = useAuth();
-  const isConsultant = (profile?.user_type || user?.user_metadata?.user_type) === 'CONSULTOR';
+  const router = useRouter();
   const [dashboard, setDashboard] = useState<DashboardSnapshot>(emptyDashboard);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let active = true;
+  const userRole = profile?.userType || profile?.user_type || user?.user_metadata?.user_type;
+  const hasRole = !!userRole;
+  const isConsultant = userRole === 'CONSULTOR';
 
+  useEffect(() => {
+    if (!authLoading && user && !hasRole) {
+      router.push('/onboarding');
+      return;
+    }
+
+    let active = true;
     fetchDashboard()
       .then((data) => {
-        if (active) {
-          setDashboard(data);
-        }
+        if (active) setDashboard(data);
       })
-      .catch((error) => {
-        console.error('Failed to load dashboard', error);
-      })
+      .catch((error) => console.error('Failed to load dashboard', error))
       .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       });
 
-    return () => {
-      active = false;
-    };
-  }, []);
+    return () => { active = false; };
+  }, [authLoading, user, hasRole, router]);
 
-  if (authLoading) {
+  if (authLoading || (user && !hasRole)) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-[#2563EB] border-t-transparent rounded-full animate-spin"></div>

@@ -28,6 +28,7 @@ export async function PUT(request: Request) {
       fullName?: string;
       city?: string;
       avatarUrl?: string;
+      userType?: 'EMPRESA' | 'CONSULTOR';
       role?: string;
       bio?: string;
       expertise?: string[];
@@ -42,6 +43,7 @@ export async function PUT(request: Request) {
       fullName: body.fullName,
       city: body.city,
       avatarUrl: body.avatarUrl,
+      userType: body.userType,
       role: body.role,
       bio: body.bio,
       expertise: body.expertise,
