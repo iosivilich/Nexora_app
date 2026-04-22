@@ -9,7 +9,7 @@ export default function OnboardingPage() {
   const { user, profile, updateProfile, loading } = useAuth();
   const router = useRouter();
 
-  const userRole = profile?.userType || profile?.user_type || user?.user_metadata?.user_type;
+  const userRole = profile?.userType || user?.user_metadata?.user_type;
 
   useEffect(() => {
     // Si ya tiene rol, lo mandamos al home
