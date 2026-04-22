@@ -171,6 +171,14 @@ export async function updateProfile(input: {
   role?: string;
   bio?: string;
   expertise?: string[];
+  experienceYears?: number;
+  age?: number;
+  projects?: number;
+  nombreEmpresa?: string;
+  sector?: string;
+  companySize?: string;
+  emailContacto?: string;
+  phone?: string;
 }) {
   return getJson<ProfileDetails>('/api/profile/me', {
     method: 'PUT',

@@ -153,42 +153,42 @@ export type AuthenticatedBackendContext = {
 const DEMO_COMPANIES = [
   {
     id: '8572366c-365d-44e5-99df-8f8a8089d66a',
-    full_name: '(DEMO) Nexora Solutions',
+    full_name: 'Nexora Solutions',
     avatar_url: '',
     city: 'Bogota',
     user_type: 'EMPRESA',
   },
   {
     id: 'c993658f-d808-448b-b50c-a7963e6bae26',
-    full_name: '(DEMO) TechInnovate Latam',
+    full_name: 'TechInnovate Latam',
     avatar_url: '',
     city: 'Medellin',
     user_type: 'EMPRESA',
   },
   {
     id: '98032812-04f1-429f-a019-33bf78d5894c',
-    full_name: '(DEMO) Bogota Digital Hub',
+    full_name: 'Bogota Digital Hub',
     avatar_url: '',
     city: 'Bogota',
     user_type: 'EMPRESA',
   },
   {
     id: 'd1ae2ce7-42e2-43cf-9d04-487f1898348c',
-    full_name: '(DEMO) GreenFuture Energias',
+    full_name: 'GreenFuture Energias',
     avatar_url: '',
     city: 'Cali',
     user_type: 'EMPRESA',
   },
   {
     id: '87df129c-078c-47bb-87e3-47ef0b8a447a',
-    full_name: '(DEMO) Inversiones Capital Bogota',
+    full_name: 'Inversiones Capital Bogota',
     avatar_url: '',
     city: 'Bogota',
     user_type: 'EMPRESA',
   },
   {
     id: '68deda3e-835b-4bbc-bb8f-ce06a8e8de00',
-    full_name: '(DEMO) Manufacturas Siglo XXI',
+    full_name: 'Manufacturas Siglo XXI',
     avatar_url: '',
     city: 'Barranquilla',
     user_type: 'EMPRESA',
@@ -199,7 +199,7 @@ const DEMO_CONSULTANTS = [
   {
     profile: {
       id: '163523f8-ad95-4b66-bdad-8e39810761fd',
-      full_name: '(DEMO) Marta Cloud',
+      full_name: 'Marta Cloud',
       avatar_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=400',
       city: 'Bogota',
       user_type: 'CONSULTOR',
@@ -211,7 +211,7 @@ const DEMO_CONSULTANTS = [
       projects: 15,
       experience_years: 15,
       age: 42,
-      bio: 'Consultora demo especializada en arquitectura cloud y modernizacion de plataformas.',
+      bio: 'Especialista en arquitectura cloud y modernización de plataformas empresariales con enfoque en escalabilidad.',
       expertise: ['Cloud Computing'],
       verified: true,
     },
@@ -219,19 +219,19 @@ const DEMO_CONSULTANTS = [
   {
     profile: {
       id: '5626979d-84bb-45df-be79-c55a095e82e2',
-      full_name: '(DEMO) Ana Estratega',
+      full_name: 'Ana Estratega',
       avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=400',
       city: 'Medellin',
       user_type: 'CONSULTOR',
     },
     consultant: {
       id: '5626979d-84bb-45df-be79-c55a095e82e2',
-      role: 'Lider en Agilidad',
+      role: 'Líder en Agilidad',
       rating: 4.9,
       projects: 35,
       experience_years: 12,
       age: 38,
-      bio: 'Consultora demo enfocada en estrategia agil, transformacion de equipos y mejora continua.',
+      bio: 'Experta en estrategia ágil, transformación de equipos y optimización de procesos de entrega continua.',
       expertise: ['Agile Coaching'],
       verified: true,
     },
@@ -239,7 +239,7 @@ const DEMO_CONSULTANTS = [
   {
     profile: {
       id: '491d9499-7d63-42c0-94f9-8d204cc968fd',
-      full_name: '(DEMO) Carlos Experto',
+      full_name: 'Carlos Experto',
       avatar_url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=400',
       city: 'Bogota',
       user_type: 'CONSULTOR',
@@ -251,7 +251,7 @@ const DEMO_CONSULTANTS = [
       projects: 20,
       experience_years: 10,
       age: 34,
-      bio: 'Consultor demo con enfoque en ciberseguridad, gobierno TI y mitigacion de riesgo.',
+      bio: 'Arquitecto de seguridad con enfoque en gobierno de TI, cumplimiento normativo y mitigación de riesgos críticos.',
       expertise: ['Cyber Security'],
       verified: true,
     },
@@ -259,19 +259,19 @@ const DEMO_CONSULTANTS = [
   {
     profile: {
       id: 'a8da3ec7-6a9b-405f-a4e7-dbc241bad602',
-      full_name: '(DEMO) Felipe Data',
+      full_name: 'Felipe Data',
       avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=400',
       city: 'Bogota',
       user_type: 'CONSULTOR',
     },
     consultant: {
       id: 'a8da3ec7-6a9b-405f-a4e7-dbc241bad602',
-      role: 'Cientifico de Datos',
+      role: 'Científico de Datos',
       rating: 4.7,
       projects: 50,
       experience_years: 8,
       age: 30,
-      bio: 'Consultor demo dedicado a ciencia de datos, analitica avanzada y modelos predictivos.',
+      bio: 'Especialista en analítica avanzada y modelos predictivos para la toma de decisiones estratégicas basadas en datos.',
       expertise: ['Data Science'],
       verified: true,
     },
@@ -279,7 +279,7 @@ const DEMO_CONSULTANTS = [
   {
     profile: {
       id: 'ae90d09b-7a5c-415d-828f-50855a28d398',
-      full_name: '(DEMO) Juan Blockchain',
+      full_name: 'Juan Blockchain',
       avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400',
       city: 'Cali',
       user_type: 'CONSULTOR',
@@ -953,6 +953,7 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
     companyCount: companies.length,
     verifiedConsultantCount: consultants.filter((consultant) => consultant.verified).length,
     averageRating,
+    eliteConsultantsCount: consultants.filter((consultant) => consultant.rating >= 4.5).length,
     featuredConsultants: consultants.slice(0, 4),
     companies,
     topCities,
@@ -1306,7 +1307,7 @@ function buildProfileDetails(input: {
   const userType =
     input.profile.user_type ??
     metadataUserType ??
-    (input.companyRecord ? 'EMPRESA' : 'CONSULTOR');
+    null;
 
   return {
     id: input.profile.id,
@@ -1398,6 +1399,15 @@ export async function updateProfileDetails(
     role?: string | null;
     bio?: string | null;
     expertise?: string[] | null;
+    experienceYears?: number | null;
+    age?: number | null;
+    projects?: number | null;
+    // Empresa fields
+    nombreEmpresa?: string | null;
+    sector?: string | null;
+    companySize?: string | null;
+    emailContacto?: string | null;
+    phone?: string | null;
   },
   db: SupabaseClient = getDatabaseClient(),
 ) {
@@ -1437,24 +1447,100 @@ export async function updateProfileDetails(
     }
   }
 
-  const consultantUpdates: Record<string, unknown> = {};
-  if (typeof input.role === 'string') {
-    consultantUpdates.role = input.role;
-  }
-  if (typeof input.bio === 'string') {
-    consultantUpdates.bio = input.bio;
-  }
-  if (Array.isArray(input.expertise)) {
-    consultantUpdates.expertise = input.expertise;
-  }
-  if (Object.keys(consultantUpdates).length > 0) {
-    consultantUpdates.updated_at = new Date().toISOString();
-    const { error } = await db.from('consultants').upsert({
-      id: input.profileId,
-      ...consultantUpdates,
-    });
-    if (error) {
-      throw error;
+  const { data: profileData } = await db
+    .from('profiles')
+    .select('user_type, empresa_id, consultor_id')
+    .eq('id', input.profileId)
+    .maybeSingle();
+
+  const { companyRecord, consultantRecord } = await resolveBusinessRecords(
+    { id: input.profileId, ...profileData } as any,
+    (await getAuthUser(input.profileId)).email,
+  );
+
+  const currentUserType = input.userType || profileData?.user_type || (companyRecord ? 'EMPRESA' : 'CONSULTOR');
+
+  if (currentUserType === 'CONSULTOR') {
+    const consultantUpdates: Record<string, unknown> = {};
+    if (typeof input.role === 'string') {
+      consultantUpdates.role = input.role;
+    }
+    if (typeof input.bio === 'string') {
+      consultantUpdates.bio = input.bio;
+    }
+    if (Array.isArray(input.expertise)) {
+      consultantUpdates.expertise = input.expertise;
+    }
+    if (typeof input.experienceYears === 'number') {
+      consultantUpdates.experience_years = input.experienceYears;
+    }
+    if (typeof input.age === 'number') {
+      consultantUpdates.age = input.age;
+    }
+    if (typeof input.projects === 'number') {
+      consultantUpdates.projects = input.projects;
+    }
+
+    if (Object.keys(consultantUpdates).length > 0) {
+      consultantUpdates.updated_at = new Date().toISOString();
+      const { error } = await db.from('consultants').upsert({
+        id: input.profileId,
+        ...consultantUpdates,
+      });
+      if (error) throw error;
+    }
+
+    if (consultantRecord) {
+      const consultorUpdates: Record<string, any> = {};
+      
+      if (typeof input.experienceYears === 'number') {
+        consultorUpdates['años_experiencia'] = input.experienceYears;
+      }
+      if (typeof input.role === 'string') {
+        consultorUpdates.especialidad = input.role;
+      }
+      if (typeof input.fullName === 'string' && input.fullName.trim() !== '') {
+        const parts = input.fullName.trim().split(/\s+/);
+        consultorUpdates.nombre = parts[0] || 'Consultor';
+        consultorUpdates.apellido = parts.slice(1).join(' ') || 'Nexora';
+      }
+
+      if (Object.keys(consultorUpdates).length > 0) {
+        const { error } = await db
+          .from('consultor')
+          .update(consultorUpdates)
+          .eq('id_consultor', consultantRecord.id_consultor);
+        if (error) throw error;
+      }
+    }
+  } else if (currentUserType === 'EMPRESA' && companyRecord) {
+    const empresaUpdates: Record<string, any> = {};
+
+    if (typeof input.bio === 'string') {
+      empresaUpdates.descripcion = input.bio;
+    }
+    if (typeof input.nombreEmpresa === 'string') {
+      empresaUpdates.nombre_empresa = input.nombreEmpresa;
+    }
+    if (typeof input.sector === 'string') {
+      empresaUpdates.sector = input.sector;
+    }
+    if (typeof input.companySize === 'string') {
+      empresaUpdates.tamaño_empresa = input.companySize;
+    }
+    if (typeof input.emailContacto === 'string') {
+      empresaUpdates.email_contacto = input.emailContacto;
+    }
+    if (typeof input.phone === 'string') {
+      empresaUpdates.telefono = input.phone;
+    }
+
+    if (Object.keys(empresaUpdates).length > 0) {
+      const { error } = await db
+        .from('empresa')
+        .update(empresaUpdates)
+        .eq('id_empresa', companyRecord.id_empresa);
+      if (error) throw error;
     }
   }
 

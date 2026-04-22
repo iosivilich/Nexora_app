@@ -33,6 +33,7 @@ export interface DashboardSnapshot {
   companyCount: number;
   verifiedConsultantCount: number;
   averageRating: number;
+  eliteConsultantsCount: number;
   featuredConsultants: ConsultantDirectoryItem[];
   companies: CompanyDirectoryItem[];
   topCities: CityCoverageItem[];

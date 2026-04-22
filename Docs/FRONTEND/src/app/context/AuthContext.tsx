@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const fallbackUserType =
         metadata.user_type === 'EMPRESA' || metadata.user_type === 'CONSULTOR'
           ? metadata.user_type
-          : 'CONSULTOR';
+          : null;
       setProfile({
         id: authUser.id,
         fullName: typeof metadata.full_name === 'string' && metadata.full_name.trim() ? metadata.full_name : fallbackName,

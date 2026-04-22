@@ -35,6 +35,14 @@ export async function PUT(request: Request) {
       role?: string;
       bio?: string;
       expertise?: string[];
+      experienceYears?: number;
+      age?: number;
+      projects?: number;
+      nombreEmpresa?: string;
+      sector?: string;
+      companySize?: string;
+      emailContacto?: string;
+      phone?: string;
     };
 
     const context = await getAuthenticatedContext();
@@ -48,6 +56,14 @@ export async function PUT(request: Request) {
       role: body.role,
       bio: body.bio,
       expertise: body.expertise,
+      experienceYears: body.experienceYears,
+      age: body.age,
+      projects: body.projects,
+      nombreEmpresa: body.nombreEmpresa,
+      sector: body.sector,
+      companySize: body.companySize,
+      emailContacto: body.emailContacto,
+      phone: body.phone,
     }, context.routeClient);
 
     return NextResponse.json(profile);

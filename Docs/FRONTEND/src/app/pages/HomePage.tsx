@@ -29,6 +29,7 @@ const emptyDashboard: DashboardSnapshot = {
   companyCount: 0,
   verifiedConsultantCount: 0,
   averageRating: 0,
+  eliteConsultantsCount: 0,
   featuredConsultants: [],
   companies: [],
   topCities: [],
@@ -41,11 +42,14 @@ export function HomePage() {
   const [loading, setLoading] = useState(true);
 
   const userRole = profile?.userType || user?.user_metadata?.user_type;
+  const userCity = profile?.city || user?.user_metadata?.city;
   const hasRole = !!userRole;
+  const hasCity = !!userCity;
+  const isComplete = hasRole && hasCity;
   const isConsultant = userRole === 'CONSULTOR';
 
   useEffect(() => {
-    if (!authLoading && user && !hasRole) {
+    if (!authLoading && user && !isComplete) {
       router.push('/onboarding');
       return;
     }
@@ -61,9 +65,9 @@ export function HomePage() {
       });
 
     return () => { active = false; };
-  }, [authLoading, user, hasRole, router]);
+  }, [authLoading, user, isComplete, router]);
 
-  if (authLoading || (user && !hasRole)) {
+  if (authLoading || (user && !isComplete)) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-[#2563EB] border-t-transparent rounded-full animate-spin"></div>
@@ -114,7 +118,7 @@ function CompanyHome({
           Accede a una red exclusiva de consultores verificados preparados para resolver los desafíos más complejos de tu organización.
         </p>
         <p className="text-sm text-[#9CC2FF] mb-8">
-          Datos activos en Supabase: {dashboard.companyCount} empresas demo y {dashboard.consultantCount} consultores demo.
+          Red activa: {dashboard.companyCount} empresas y {dashboard.consultantCount} consultores registrados.
         </p>
         <div className="flex flex-wrap gap-4">
           <Link href="/explorar">
@@ -175,7 +179,7 @@ function CompanyHome({
             <h2 className="text-2xl lg:text-3xl text-white mb-2 font-bold" style={{ fontFamily: 'var(--font-secondary)' }}>
               Consultores Destacados
             </h2>
-            <p className="text-white/60">Talento verificado cargado directamente desde Supabase</p>
+            <p className="text-white/60">Los profesionales mejor calificados de nuestra red</p>
           </div>
           <Link href="/explorar" className="hidden lg:flex items-center gap-2 text-[#2563EB] hover:text-[#6D5EF3] transition-colors font-bold">
             <span>Ver todos</span>
@@ -230,7 +234,7 @@ function ConsultantHome({
           Accede a los desafíos más relevantes de las empresas líderes y colabora en la transformación organizacional del mercado.
         </p>
         <p className="text-sm text-[#D7D2FF] mb-8">
-          Red en vivo: {dashboard.companyCount} empresas demo visibles y {dashboard.consultantCount} consultores sincronizados.
+          Red en vivo: {dashboard.companyCount} empresas aliadas y {dashboard.consultantCount} consultores en la plataforma.
         </p>
         <div className="flex flex-wrap gap-4">
           <Link href="/explorar">
@@ -265,7 +269,7 @@ function ConsultantHome({
             title="Empresas Activas"
             value={loading ? '...' : String(dashboard.companyCount)}
             change={loading ? '...' : String(dashboard.topCities.length || 1)}
-            changeLabel="ciudades demo"
+            changeLabel="Ciudades activas"
             icon={Building2}
             color="purple"
           />
@@ -278,10 +282,10 @@ function ConsultantHome({
             color="blue"
           />
           <StatsCard
-            title="Talento en Red"
-            value={loading ? '...' : String(dashboard.consultantCount)}
-            change={loading ? '...' : String(dashboard.companies.length)}
-            changeLabel="empresas visibles"
+            title="Talento Elite"
+            value={loading ? '...' : String(dashboard.eliteConsultantsCount || 0)}
+            change={loading ? '...' : 'Top 5%'}
+            changeLabel="mejores calificados"
             icon={Target}
             color="green"
           />
@@ -314,7 +318,7 @@ function ConsultantHome({
           <div className="grid grid-cols-2 gap-4 text-center">
             <GlassCard className="p-6">
               <p className="text-3xl font-bold text-white mb-1">{loading ? '...' : dashboard.companyCount}</p>
-              <p className="text-xs text-white/40 uppercase font-bold">Empresas Demo</p>
+              <p className="text-xs text-white/40 uppercase font-bold">Alianzas Estratégicas</p>
             </GlassCard>
             <GlassCard className="p-6">
               <p className="text-3xl font-bold text-white mb-1">{loading ? '...' : `${dashboard.averageRating.toFixed(1)}★`}</p>

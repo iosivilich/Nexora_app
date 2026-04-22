@@ -23,6 +23,14 @@ export function ProfilePage() {
     role: '',
     bio: '',
     expertise: '',
+    experienceYears: '',
+    age: '',
+    projects: '',
+    nombreEmpresa: '',
+    sector: '',
+    companySize: '',
+    emailContacto: '',
+    phone: '',
   });
 
   useEffect(() => {
@@ -35,8 +43,16 @@ export function ProfilePage() {
       city: profile.city,
       avatarUrl: profile.avatarUrl,
       role: profile.consultantProfile?.role ?? '',
-      bio: profile.consultantProfile?.bio ?? '',
+      bio: profile.consultantProfile?.bio ?? profile.companyRecord?.descripcion ?? '',
       expertise: profile.consultantProfile?.expertise.join(', ') ?? '',
+      experienceYears: String(profile.consultantProfile?.experience ?? profile.consultantRecord?.anosExperiencia ?? ''),
+      age: String(profile.consultantProfile?.age ?? ''),
+      projects: String(profile.consultantProfile?.projects ?? ''),
+      nombreEmpresa: profile.companyRecord?.nombreEmpresa ?? '',
+      sector: profile.companyRecord?.sector ?? '',
+      companySize: profile.companyRecord?.tamanoEmpresa ?? '',
+      emailContacto: profile.companyRecord?.emailContacto ?? '',
+      phone: profile.companyRecord?.telefono ?? '',
     });
   }, [profile]);
 
@@ -77,14 +93,22 @@ export function ProfilePage() {
         fullName: form.fullName,
         city: form.city,
         avatarUrl: form.avatarUrl,
+        bio: form.bio,
         role: isConsultant ? form.role : undefined,
-        bio: isConsultant ? form.bio : undefined,
+        experienceYears: isConsultant ? Number(form.experienceYears) || 0 : undefined,
+        age: isConsultant ? Number(form.age) || 0 : undefined,
+        projects: isConsultant ? Number(form.projects) || 0 : undefined,
         expertise: isConsultant
           ? form.expertise
               .split(',')
               .map((item) => item.trim())
               .filter(Boolean)
           : undefined,
+        nombreEmpresa: !isConsultant ? form.nombreEmpresa : undefined,
+        sector: !isConsultant ? form.sector : undefined,
+        companySize: !isConsultant ? form.companySize : undefined,
+        emailContacto: !isConsultant ? form.emailContacto : undefined,
+        phone: !isConsultant ? form.phone : undefined,
       });
       await refreshProfile();
       setIsEditing(false);
@@ -200,7 +224,8 @@ export function ProfilePage() {
                 {[
                   ['Nombre Completo', 'fullName'],
                   ['Ciudad', 'city'],
-                  ...(isConsultant ? [['Rol Profesional', 'role']] : []),
+                  ...(isConsultant ? [['Rol Profesional', 'role'], ['Edad', 'age']] : []),
+                  ...(!isConsultant ? [['Nombre de la Empresa', 'nombreEmpresa'], ['Sector', 'sector']] : []),
                 ].map(([label, key]) => (
                   <div key={key}>
                     <label className="block text-sm text-white/60 mb-2">{label}</label>
@@ -248,15 +273,31 @@ export function ProfilePage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
                       <Briefcase className="w-5 h-5 text-white/40 mb-2" />
-                      <p className="text-xs text-white/40 uppercase tracking-wider">Experiencia</p>
-                      <p className="text-white font-semibold">
-                        {profile.consultantProfile?.experience ?? profile.consultantRecord?.anosExperiencia ?? 0} años
-                      </p>
+                      <p className="text-xs text-white/40 uppercase tracking-wider">Experiencia (años)</p>
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          value={form.experienceYears}
+                          onChange={(e) => setForm((c) => ({ ...c, experienceYears: e.target.value }))}
+                          className="w-full bg-transparent border-none text-white font-semibold focus:outline-none"
+                        />
+                      ) : (
+                        <p className="text-white font-semibold">{form.experienceYears || '0'} años</p>
+                      )}
                     </div>
                     <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
                       <Briefcase className="w-5 h-5 text-white/40 mb-2" />
                       <p className="text-xs text-white/40 uppercase tracking-wider">Proyectos</p>
-                      <p className="text-white font-semibold">{profile.consultantProfile?.projects ?? 0}</p>
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          value={form.projects}
+                          onChange={(e) => setForm((c) => ({ ...c, projects: e.target.value }))}
+                          className="w-full bg-transparent border-none text-white font-semibold focus:outline-none"
+                        />
+                      ) : (
+                        <p className="text-white font-semibold">{form.projects || '0'}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -270,27 +311,73 @@ export function ProfilePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
                     <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Sector</p>
-                    <p className="text-white">{profile.companyRecord?.sector ?? 'Sin sector definido'}</p>
+                    {isEditing ? (
+                      <input
+                        value={form.sector}
+                        onChange={(e) => setForm((c) => ({ ...c, sector: e.target.value }))}
+                        className="w-full bg-transparent border-none text-white focus:outline-none"
+                        placeholder="Ej. Tecnología, Salud..."
+                      />
+                    ) : (
+                      <p className="text-white">{form.sector || 'Sin sector definido'}</p>
+                    )}
                   </div>
                   <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                    <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Tamaño</p>
-                    <p className="text-white">{profile.companyRecord?.tamanoEmpresa ?? 'Sin tamaño definido'}</p>
+                    <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Tamaño de Empresa</p>
+                    {isEditing ? (
+                      <input
+                        value={form.companySize}
+                        onChange={(e) => setForm((c) => ({ ...c, companySize: e.target.value }))}
+                        className="w-full bg-transparent border-none text-white focus:outline-none"
+                        placeholder="Ej. 11-50 empleados"
+                      />
+                    ) : (
+                      <p className="text-white">{form.companySize || 'Sin tamaño definido'}</p>
+                    )}
+                  </div>
+                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                    <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Teléfono</p>
+                    {isEditing ? (
+                      <input
+                        value={form.phone}
+                        onChange={(e) => setForm((c) => ({ ...c, phone: e.target.value }))}
+                        className="w-full bg-transparent border-none text-white focus:outline-none"
+                        placeholder="Ej. +57 300..."
+                      />
+                    ) : (
+                      <p className="text-white">{form.phone || 'Sin teléfono'}</p>
+                    )}
                   </div>
                   <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
                     <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Correo de contacto</p>
-                    <p className="text-white">{profile.companyRecord?.emailContacto ?? profile.email ?? 'Sin correo público'}</p>
-                  </div>
-                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                    <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Estado</p>
-                    <p className="text-white">{profile.companyRecord?.estado ?? 'Activo'}</p>
+                    {isEditing ? (
+                      <input
+                        value={form.emailContacto}
+                        onChange={(e) => setForm((c) => ({ ...c, emailContacto: e.target.value }))}
+                        className="w-full bg-transparent border-none text-white focus:outline-none"
+                        placeholder="email@empresa.com"
+                      />
+                    ) : (
+                      <p className="text-white">{form.emailContacto || 'Sin correo público'}</p>
+                    )}
                   </div>
                 </div>
 
                 <div className="mt-6">
                   <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Descripción</p>
-                  <p className="text-white/70">
-                    {profile.companyRecord?.descripcion ?? 'Completa la información operativa de la empresa en tu base de datos para enriquecer este perfil.'}
-                  </p>
+                  {isEditing ? (
+                    <textarea
+                      rows={4}
+                      value={form.bio}
+                      onChange={(event) => setForm((current) => ({ ...current, bio: event.target.value }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#2563EB]"
+                    />
+                  ) : (
+                    <p className="text-white/70">
+                      {profile.companyRecord?.descripcion ??
+                        'Completa la información operativa de la empresa en tu base de datos para enriquecer este perfil.'}
+                    </p>
+                  )}
                 </div>
               </GlassCard>
             )}
