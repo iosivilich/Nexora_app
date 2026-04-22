@@ -824,8 +824,11 @@ function toUserSettingsRow(userId: string, settings: UserSettings) {
   };
 }
 
-async function resolveBusinessRecords(profile: ProfileRow, email?: string | null) {
-  const db = getDatabaseClient();
+async function resolveBusinessRecords(
+  profile: ProfileRow,
+  email?: string | null,
+  db: SupabaseClient = getDatabaseClient(),
+) {
   const normalizedEmail = normalizeQueryValue(email)?.toLowerCase() ?? null;
   const fallbackDisplayName =
     normalizeQueryValue(profile.full_name) ??
@@ -958,7 +961,7 @@ export async function getAuthenticatedContext(): Promise<AuthenticatedBackendCon
     throw createRuntimeError('Debes iniciar sesión para acceder a este recurso.', 401);
   }
 
-  const db = getDatabaseClient();
+  const db = routeClient;
   const [profileResult, consultantResult] = await Promise.all([
     db.from('profiles').select('*').eq('id', user.id).maybeSingle(),
     db
@@ -980,7 +983,7 @@ export async function getAuthenticatedContext(): Promise<AuthenticatedBackendCon
 
   const profile = await syncProfileFromAuthUser(profileResult.data as ProfileRow | null, user, routeClient);
 
-  const { companyRecord, consultantRecord } = await resolveBusinessRecords(profile, user.email ?? null);
+  const { companyRecord, consultantRecord } = await resolveBusinessRecords(profile, user.email ?? null, routeClient);
 
   return {
     routeClient,
@@ -1295,8 +1298,9 @@ export async function createChallenge(input: {
   budget?: number | null;
   mode?: string | null;
   status?: string | null;
-}) {
-  const db = getDatabaseClient();
+},
+db: SupabaseClient = getDatabaseClient(),
+) {
   const { data, error } = await db
     .from('desafio')
     .insert({
@@ -1334,8 +1338,9 @@ export async function listApplications(filters: {
   idEmpresa?: number | null;
   idDesafio?: number | null;
   status?: string | null;
-}) {
-  const db = getDatabaseClient();
+},
+db: SupabaseClient = getDatabaseClient(),
+) {
   let query = db.from('postulacion').select('*').order('fecha_postulacion', { ascending: false });
 
   if (typeof filters.idConsultor === 'number') {
@@ -1437,8 +1442,9 @@ export async function createApplication(input: {
   coverLetter: string;
   proposedBudget?: number | null;
   status?: string | null;
-}) {
-  const db = getDatabaseClient();
+},
+db: SupabaseClient = getDatabaseClient(),
+) {
   const { data, error } = await db
     .from('postulacion')
     .insert({
@@ -1456,7 +1462,7 @@ export async function createApplication(input: {
     throw error;
   }
 
-  const items = await listApplications({ idDesafio: input.idDesafio });
+  const items = await listApplications({ idDesafio: input.idDesafio }, db);
   return items.find((item) => item.id === (data as ApplicationRow).id_postulacion) ?? mapApplication(data as ApplicationRow);
 }
 
@@ -2286,10 +2292,9 @@ export async function getOrCreateConversation(
   consultantId: string,
   db: SupabaseClient = getDatabaseClient(),
 ) {
-  const dbAdmin = getDatabaseClient();
   const [profileResult, consultantResult, existingResult] = await Promise.all([
-    dbAdmin.from('profiles').select('id, user_type').eq('id', profileId).maybeSingle(),
-    dbAdmin.from('consultants').select('id').eq('id', consultantId).maybeSingle(),
+    db.from('profiles').select('id, user_type').eq('id', profileId).maybeSingle(),
+    db.from('consultants').select('id').eq('id', consultantId).maybeSingle(),
     db
       .from('conversations')
       .select('*')
@@ -2513,7 +2518,7 @@ export async function scheduleAppointment(
   },
   db: SupabaseClient = getDatabaseClient(),
 ) {
-  const { data: consultantData, error: consultantError } = await getDatabaseClient()
+  const { data: consultantData, error: consultantError } = await db
     .from('consultants')
     .select('id')
     .eq('id', input.consultantId)

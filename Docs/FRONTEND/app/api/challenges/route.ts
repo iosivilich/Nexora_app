@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       budget: body.budget ?? null,
       mode: body.mode ?? null,
       status: body.status ?? null,
-    });
+    }, context.routeClient);
 
     return NextResponse.json(item, { status: 201 });
   } catch (error) {

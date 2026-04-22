@@ -76,6 +76,7 @@ describe('business routes', () => {
     getAuthenticatedContext.mockResolvedValueOnce({
       profile: { user_type: 'EMPRESA' },
       companyRecord: { id_empresa: 99 },
+      routeClient: { kind: 'route-client' },
     });
     createChallenge.mockResolvedValueOnce({ id: 'challenge-2' });
 
@@ -93,33 +94,40 @@ describe('business routes', () => {
     }));
 
     expect(response.status).toBe(201);
-    expect(createChallenge).toHaveBeenCalledWith({
-      idEmpresa: 99,
-      title: 'Expansion regional',
-      description: 'Detalle',
-      specialty: 'Estrategia',
-      budget: null,
-      mode: null,
-      status: null,
-    });
+    expect(createChallenge).toHaveBeenCalledWith(
+      {
+        idEmpresa: 99,
+        title: 'Expansion regional',
+        description: 'Detalle',
+        specialty: 'Estrategia',
+        budget: null,
+        mode: null,
+        status: null,
+      },
+      { kind: 'route-client' },
+    );
   });
 
   it('lets a company list only applications for its own projects', async () => {
     getAuthenticatedContext.mockResolvedValueOnce({
       profile: { user_type: 'EMPRESA' },
       companyRecord: { id_empresa: 44 },
+      routeClient: { kind: 'route-client' },
     });
     listApplications.mockResolvedValueOnce([{ id: 1 }]);
 
     const response = await getApplications(new Request('http://localhost/api/applications'));
 
     expect(response.status).toBe(200);
-    expect(listApplications).toHaveBeenCalledWith({
-      idConsultor: null,
-      idEmpresa: 44,
-      idDesafio: null,
-      status: null,
-    });
+    expect(listApplications).toHaveBeenCalledWith(
+      {
+        idConsultor: null,
+        idEmpresa: 44,
+        idDesafio: null,
+        status: null,
+      },
+      { kind: 'route-client' },
+    );
   });
 
   it('returns an empty applications payload for a consultant without linked business record yet', async () => {
@@ -164,6 +172,7 @@ describe('business routes', () => {
     getAuthenticatedContext.mockResolvedValueOnce({
       profile: { user_type: 'CONSULTOR' },
       consultantRecord: { id_consultor: 55 },
+      routeClient: { kind: 'route-client' },
     });
     createApplication.mockResolvedValueOnce({ id: 3 });
 
@@ -181,12 +190,15 @@ describe('business routes', () => {
     }));
 
     expect(response.status).toBe(201);
-    expect(createApplication).toHaveBeenCalledWith({
-      idDesafio: 10,
-      idConsultor: 55,
-      coverLetter: 'Tengo experiencia relevante',
-      proposedBudget: 5000,
-      status: null,
-    });
+    expect(createApplication).toHaveBeenCalledWith(
+      {
+        idDesafio: 10,
+        idConsultor: 55,
+        coverLetter: 'Tengo experiencia relevante',
+        proposedBudget: 5000,
+        status: null,
+      },
+      { kind: 'route-client' },
+    );
   });
 });
