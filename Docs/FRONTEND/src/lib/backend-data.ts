@@ -1357,6 +1357,11 @@ export async function listApplications(filters: {
   }
 
   const applicationRows = (data ?? []) as ApplicationRow[];
+
+  if (applicationRows.length === 0) {
+    return [];
+  }
+
   const challengeIds = Array.from(new Set(applicationRows.map((row) => row.id_desafio).filter(Boolean))) as number[];
   const consultorIds = Array.from(new Set(applicationRows.map((row) => row.id_consultor).filter(Boolean))) as number[];
 

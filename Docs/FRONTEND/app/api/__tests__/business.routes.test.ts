@@ -122,6 +122,23 @@ describe('business routes', () => {
     });
   });
 
+  it('returns an empty applications payload for a consultant without linked business record yet', async () => {
+    getAuthenticatedContext.mockResolvedValueOnce({
+      profile: { user_type: 'CONSULTOR' },
+      consultantRecord: null,
+    });
+
+    const response = await getApplications(new Request('http://localhost/api/applications'));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      items: [],
+      count: 0,
+      source: 'supabase',
+    });
+    expect(listApplications).not.toHaveBeenCalled();
+  });
+
   it('prevents a company from creating consultant applications', async () => {
     getAuthenticatedContext.mockResolvedValueOnce({
       profile: { user_type: 'EMPRESA' },

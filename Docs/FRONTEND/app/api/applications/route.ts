@@ -16,17 +16,19 @@ export async function GET(request: Request) {
     const context = await getAuthenticatedContext();
 
     if (context.profile.user_type === 'CONSULTOR' && !context.consultantRecord?.id_consultor) {
-      return NextResponse.json(
-        { error: 'Tu usuario consultor aún no está vinculado a un registro de consultor.' },
-        { status: 403 },
-      );
+      return NextResponse.json({
+        items: [],
+        count: 0,
+        source: 'supabase',
+      });
     }
 
     if (context.profile.user_type === 'EMPRESA' && !context.companyRecord?.id_empresa) {
-      return NextResponse.json(
-        { error: 'Tu usuario empresa aún no está vinculado a un registro de empresa.' },
-        { status: 403 },
-      );
+      return NextResponse.json({
+        items: [],
+        count: 0,
+        source: 'supabase',
+      });
     }
 
     const requestedConsultorId = toNumber(searchParams.get('idConsultor'));
