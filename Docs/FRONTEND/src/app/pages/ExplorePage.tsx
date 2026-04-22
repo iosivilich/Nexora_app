@@ -381,7 +381,10 @@ export function ExplorePage() {
                           <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
                             <Briefcase className="w-5 h-5 text-blue-400" />
                           </div>
-                          <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">{challenge.specialty}</span>
+                          <div>
+                            <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">{challenge.specialty}</span>
+                            <p className="text-xs text-white/45 mt-1">{challenge.companyName ?? 'Empresa tecnologica'}</p>
+                          </div>
                         </div>
                         <h3 className="text-xl font-bold text-white mb-2 leading-tight">{challenge.title}</h3>
                         <p className="text-sm text-white/60 line-clamp-3 mb-6">{challenge.description}</p>
@@ -541,6 +544,7 @@ export function ExplorePage() {
               <h2 className="text-2xl text-white mb-2" style={{ fontFamily: 'var(--font-secondary)' }}>
                 {selectedChallenge.title}
               </h2>
+              <p className="text-sm text-[#9CC2FF] mb-2">{selectedChallenge.companyName ?? 'Empresa tecnologica'}</p>
               <p className="text-white/60 mb-6">{selectedChallenge.description}</p>
 
               <div className="space-y-4">

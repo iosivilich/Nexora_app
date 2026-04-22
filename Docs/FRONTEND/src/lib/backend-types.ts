@@ -43,6 +43,7 @@ export interface ChallengeSummary {
   id: string;
   numericId?: number | null;
   companyId?: number | null;
+  companyName?: string | null;
   title: string;
   description: string;
   status: string;

@@ -153,45 +153,51 @@ export type AuthenticatedBackendContext = {
 const DEMO_COMPANIES = [
   {
     id: '8572366c-365d-44e5-99df-8f8a8089d66a',
-    full_name: 'Nexora Solutions',
+    full_name: '(DEMO) Microsoft Colombia',
     avatar_url: '',
     city: 'Bogota',
     user_type: 'EMPRESA',
+    empresa_id: 8,
   },
   {
     id: 'c993658f-d808-448b-b50c-a7963e6bae26',
-    full_name: 'TechInnovate Latam',
+    full_name: '(DEMO) Google Cloud Colombia',
     avatar_url: '',
-    city: 'Medellin',
+    city: 'Bogota',
     user_type: 'EMPRESA',
+    empresa_id: 9,
   },
   {
     id: '98032812-04f1-429f-a019-33bf78d5894c',
-    full_name: 'Bogota Digital Hub',
+    full_name: '(DEMO) Mercado Libre Tech',
     avatar_url: '',
     city: 'Bogota',
     user_type: 'EMPRESA',
+    empresa_id: 10,
   },
   {
     id: 'd1ae2ce7-42e2-43cf-9d04-487f1898348c',
-    full_name: 'GreenFuture Energias',
-    avatar_url: '',
-    city: 'Cali',
-    user_type: 'EMPRESA',
-  },
-  {
-    id: '87df129c-078c-47bb-87e3-47ef0b8a447a',
-    full_name: 'Inversiones Capital Bogota',
+    full_name: '(DEMO) Amazon Web Services Latam',
     avatar_url: '',
     city: 'Bogota',
     user_type: 'EMPRESA',
+    empresa_id: 11,
+  },
+  {
+    id: '87df129c-078c-47bb-87e3-47ef0b8a447a',
+    full_name: '(DEMO) Nubank Colombia',
+    avatar_url: '',
+    city: 'Bogota',
+    user_type: 'EMPRESA',
+    empresa_id: 12,
   },
   {
     id: '68deda3e-835b-4bbc-bb8f-ce06a8e8de00',
-    full_name: 'Manufacturas Siglo XXI',
+    full_name: '(DEMO) SAP Labs Latinoamerica',
     avatar_url: '',
-    city: 'Barranquilla',
+    city: 'Medellin',
     user_type: 'EMPRESA',
+    empresa_id: 13,
   },
 ] as const;
 
@@ -199,10 +205,11 @@ const DEMO_CONSULTANTS = [
   {
     profile: {
       id: '163523f8-ad95-4b66-bdad-8e39810761fd',
-      full_name: 'Marta Cloud',
+      full_name: '(DEMO) Marta Cloud',
       avatar_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=400',
       city: 'Bogota',
       user_type: 'CONSULTOR',
+      consultor_id: 12,
     },
     consultant: {
       id: '163523f8-ad95-4b66-bdad-8e39810761fd',
@@ -219,10 +226,11 @@ const DEMO_CONSULTANTS = [
   {
     profile: {
       id: '5626979d-84bb-45df-be79-c55a095e82e2',
-      full_name: 'Ana Estratega',
+      full_name: '(DEMO) Ana Estratega',
       avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=400',
       city: 'Medellin',
       user_type: 'CONSULTOR',
+      consultor_id: 10,
     },
     consultant: {
       id: '5626979d-84bb-45df-be79-c55a095e82e2',
@@ -239,10 +247,11 @@ const DEMO_CONSULTANTS = [
   {
     profile: {
       id: '491d9499-7d63-42c0-94f9-8d204cc968fd',
-      full_name: 'Carlos Experto',
+      full_name: '(DEMO) Carlos Experto',
       avatar_url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=400',
       city: 'Bogota',
       user_type: 'CONSULTOR',
+      consultor_id: 9,
     },
     consultant: {
       id: '491d9499-7d63-42c0-94f9-8d204cc968fd',
@@ -259,10 +268,11 @@ const DEMO_CONSULTANTS = [
   {
     profile: {
       id: 'a8da3ec7-6a9b-405f-a4e7-dbc241bad602',
-      full_name: 'Felipe Data',
+      full_name: '(DEMO) Felipe Data',
       avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=400',
       city: 'Bogota',
       user_type: 'CONSULTOR',
+      consultor_id: 11,
     },
     consultant: {
       id: 'a8da3ec7-6a9b-405f-a4e7-dbc241bad602',
@@ -279,10 +289,11 @@ const DEMO_CONSULTANTS = [
   {
     profile: {
       id: 'ae90d09b-7a5c-415d-828f-50855a28d398',
-      full_name: 'Juan Blockchain',
+      full_name: '(DEMO) Juan Blockchain',
       avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400',
       city: 'Cali',
       user_type: 'CONSULTOR',
+      consultor_id: 13,
     },
     consultant: {
       id: 'ae90d09b-7a5c-415d-828f-50855a28d398',
@@ -297,6 +308,234 @@ const DEMO_CONSULTANTS = [
     },
   },
 ] as const;
+
+const DEMO_BUSINESS_COMPANIES = [
+  {
+    id_empresa: 8,
+    nombre_empresa: 'Microsoft Colombia',
+    sector: 'Tecnologia',
+    'tamaño_empresa': 'Enterprise',
+    email_contacto: 'demo.microsoft@nexora.app',
+    telefono: '+57 300 555 0808',
+    descripcion: 'Compañia demo usada para exhibir desafios sinteticos de transformacion digital y adopcion de IA.',
+    fecha_registro: '2026-04-01T08:00:00.000Z',
+    estado: 'Activo',
+  },
+  {
+    id_empresa: 9,
+    nombre_empresa: 'Google Cloud Colombia',
+    sector: 'Cloud Computing',
+    'tamaño_empresa': 'Enterprise',
+    email_contacto: 'demo.googlecloud@nexora.app',
+    telefono: '+57 300 555 0909',
+    descripcion: 'Cuenta demo para mostrar desafios de plataforma de datos, analitica avanzada y AI aplicada.',
+    fecha_registro: '2026-04-02T08:00:00.000Z',
+    estado: 'Activo',
+  },
+  {
+    id_empresa: 10,
+    nombre_empresa: 'Mercado Libre Tech',
+    sector: 'E-commerce',
+    'tamaño_empresa': 'Enterprise',
+    email_contacto: 'demo.mercadolibre@nexora.app',
+    telefono: '+57 300 555 1010',
+    descripcion: 'Cuenta demo enfocada en retos de growth, pagos, fraude y experiencia omnicanal.',
+    fecha_registro: '2026-04-03T08:00:00.000Z',
+    estado: 'Activo',
+  },
+  {
+    id_empresa: 11,
+    nombre_empresa: 'Amazon Web Services Latam',
+    sector: 'Cloud Computing',
+    'tamaño_empresa': 'Enterprise',
+    email_contacto: 'demo.aws@nexora.app',
+    telefono: '+57 300 555 1111',
+    descripcion: 'Cuenta demo para proyectos sinteticos de FinOps, observabilidad y arquitectura cloud multi-region.',
+    fecha_registro: '2026-04-04T08:00:00.000Z',
+    estado: 'Activo',
+  },
+  {
+    id_empresa: 12,
+    nombre_empresa: 'Nubank Colombia',
+    sector: 'Fintech',
+    'tamaño_empresa': 'Scale-up',
+    email_contacto: 'demo.nubank@nexora.app',
+    telefono: '+57 300 555 1212',
+    descripcion: 'Cuenta demo para mostrar desafios de onboarding digital, riesgo transaccional y producto financiero.',
+    fecha_registro: '2026-04-05T08:00:00.000Z',
+    estado: 'Activo',
+  },
+  {
+    id_empresa: 13,
+    nombre_empresa: 'SAP Labs Latinoamerica',
+    sector: 'Enterprise Software',
+    'tamaño_empresa': 'Enterprise',
+    email_contacto: 'demo.sap@nexora.app',
+    telefono: '+57 300 555 1313',
+    descripcion: 'Cuenta demo para retos sinteticos de integracion enterprise, procesos SAP y reporting ejecutivo.',
+    fecha_registro: '2026-04-06T08:00:00.000Z',
+    estado: 'Activo',
+  },
+  {
+    id_empresa: 14,
+    nombre_empresa: 'Rappi Tech',
+    sector: 'Quick Commerce',
+    'tamaño_empresa': 'Scale-up',
+    email_contacto: 'demo.rappi@nexora.app',
+    telefono: '+57 300 555 1414',
+    descripcion: 'Cuenta demo para exponer desafios de optimizacion logistica, pricing y modelos de demanda.',
+    fecha_registro: '2026-04-07T08:00:00.000Z',
+    estado: 'Activo',
+  },
+] as const;
+
+const DEMO_CHALLENGES = [
+  {
+    companyId: 8,
+    title: 'Programa Copilot para productividad y gobierno de IA',
+    description:
+      'Desafio sintetico para demo comercial: Microsoft Colombia busca un consultor que diseñe la adopcion de Microsoft 365 Copilot, defina politicas de gobierno de IA y priorice quick wins para equipos de ventas, soporte y operaciones.',
+    specialty: 'Inteligencia Artificial',
+    budget: 28000,
+    mode: 'Hibrido',
+    status: 'Activo',
+    publishedAt: '2026-04-10T14:00:00.000Z',
+  },
+  {
+    companyId: 9,
+    title: 'Modernizacion analitica con BigQuery y Vertex AI',
+    description:
+      'Proyecto sintetico orientado a demo: Google Cloud Colombia necesita un plan de migracion de data warehouse, gobierno de datos y un primer caso de uso de ML sobre churn para equipos regionales.',
+    specialty: 'Data Engineering',
+    budget: 32000,
+    mode: 'Remoto',
+    status: 'Activo',
+    publishedAt: '2026-04-11T15:00:00.000Z',
+  },
+  {
+    companyId: 10,
+    title: 'Modelo antifraude y optimizacion de checkout',
+    description:
+      'Desafio sintetico para mostrar postulaciones: Mercado Libre Tech quiere reducir abandono en checkout y elevar precision de alertas antifraude con analitica avanzada, experimentation y observabilidad.',
+    specialty: 'Ciencia de Datos',
+    budget: 26000,
+    mode: 'Remoto',
+    status: 'Activo',
+    publishedAt: '2026-04-12T16:00:00.000Z',
+  },
+  {
+    companyId: 11,
+    title: 'FinOps multi-cuenta para plataforma SaaS regional',
+    description:
+      'Proyecto sintetico en AWS Latam para definir tagging, showback, presupuestos por dominio y alertas de gasto en una arquitectura multi-cuenta con workloads productivos y sandbox.',
+    specialty: 'Cloud Computing',
+    budget: 24000,
+    mode: 'Remoto',
+    status: 'Activo',
+    publishedAt: '2026-04-13T17:00:00.000Z',
+  },
+  {
+    companyId: 12,
+    title: 'Onboarding digital con scoring de riesgo en tiempo real',
+    description:
+      'Desafio sintetico para fintech: Nubank Colombia busca acelerar onboarding sin aumentar friccion, combinando rediseño de journey, analitica de fraude y reglas de decision para aprobacion instantanea.',
+    specialty: 'Product Strategy',
+    budget: 29000,
+    mode: 'Hibrido',
+    status: 'Activo',
+    publishedAt: '2026-04-14T13:00:00.000Z',
+  },
+  {
+    companyId: 13,
+    title: 'Integracion SAP BTP con reporting ejecutivo unificado',
+    description:
+      'Proyecto sintetico enterprise para SAP Labs Latinoamerica: construir roadmap de integracion entre S/4HANA, BTP y dashboards ejecutivos para operaciones, finanzas y procurement.',
+    specialty: 'Arquitectura Empresarial',
+    budget: 35000,
+    mode: 'Presencial',
+    status: 'Activo',
+    publishedAt: '2026-04-15T12:00:00.000Z',
+  },
+  {
+    companyId: 14,
+    title: 'Prediccion de demanda y ruteo urbano para quick commerce',
+    description:
+      'Desafio sintetico inspirado en operaciones urbanas: Rappi Tech necesita mejorar forecast por zona, priorizacion de dark stores y reglas de despacho para reducir tiempos y quiebres de stock.',
+    specialty: 'Ciencia de Datos',
+    budget: 31000,
+    mode: 'Remoto',
+    status: 'Activo',
+    publishedAt: '2026-04-16T18:00:00.000Z',
+  },
+] as const;
+
+const DEMO_APPLICATIONS = [
+  {
+    challengeTitle: 'Programa Copilot para productividad y gobierno de IA',
+    consultantId: 12,
+    coverLetter:
+      'He liderado adopciones de copilots y asistentes internos en organizaciones de mas de 2.000 usuarios. Puedo estructurar el roadmap, gobierno y quick wins medibles en 8 semanas.',
+    proposedBudget: 27000,
+    status: 'Entrevista',
+    appliedAt: '2026-04-17T09:30:00.000Z',
+  },
+  {
+    challengeTitle: 'Modernizacion analitica con BigQuery y Vertex AI',
+    consultantId: 11,
+    coverLetter:
+      'Mi experiencia combinando data engineering y machine learning me permite ordenar el stack, mejorar calidad de datos y entregar un MVP de prediccion de churn con foco en impacto comercial.',
+    proposedBudget: 31500,
+    status: 'Pendiente',
+    appliedAt: '2026-04-17T10:10:00.000Z',
+  },
+  {
+    challengeTitle: 'Modelo antifraude y optimizacion de checkout',
+    consultantId: 17,
+    coverLetter:
+      'Puedo aportar una propuesta integral que combine analitica de funnel, reglas de fraude y experimentacion de checkout para mover conversion y precision operativa en paralelo.',
+    proposedBudget: 25000,
+    status: 'Pendiente',
+    appliedAt: '2026-04-17T11:00:00.000Z',
+  },
+  {
+    challengeTitle: 'FinOps multi-cuenta para plataforma SaaS regional',
+    consultantId: 15,
+    coverLetter:
+      'He trabajado con showback, tagging, rightsizing y observabilidad financiera en arquitecturas multi-cuenta. Puedo dejar un marco de control adoptable por finanzas y engineering.',
+    proposedBudget: 23500,
+    status: 'Revisada',
+    appliedAt: '2026-04-17T11:45:00.000Z',
+  },
+  {
+    challengeTitle: 'Onboarding digital con scoring de riesgo en tiempo real',
+    consultantId: 10,
+    coverLetter:
+      'Mi enfoque mezcla producto, operaciones y analitica para rediseñar journeys criticos con alto volumen. Puedo mapear fricciones, priorizar experimentos y definir metricas de aprobacion.',
+    proposedBudget: 28500,
+    status: 'Pendiente',
+    appliedAt: '2026-04-17T12:20:00.000Z',
+  },
+  {
+    challengeTitle: 'Integracion SAP BTP con reporting ejecutivo unificado',
+    consultantId: 9,
+    coverLetter:
+      'He coordinado iniciativas de integracion y gobierno enterprise con fuerte componente de riesgo y compliance. Puedo apoyar discovery, arquitectura objetivo y plan de despliegue.',
+    proposedBudget: 34000,
+    status: 'Finalista',
+    appliedAt: '2026-04-17T13:10:00.000Z',
+  },
+  {
+    challengeTitle: 'Prediccion de demanda y ruteo urbano para quick commerce',
+    consultantId: 16,
+    coverLetter:
+      'Puedo estructurar un frente combinado de forecast, priorizacion operativa y visualizacion ejecutiva para mejorar SLA, fill rate y uso de flota en escenarios de alta variabilidad.',
+    proposedBudget: 30000,
+    status: 'Pendiente',
+    appliedAt: '2026-04-17T14:00:00.000Z',
+  },
+] as const;
+
+const FEATURED_DEMO_COMPANY_IDS = new Set<number>(DEMO_BUSINESS_COMPANIES.map((company) => company.id_empresa));
 
 const DEFAULT_SETTINGS: UserSettings = {
   notifications: {
@@ -756,6 +995,7 @@ export async function getAuthenticatedContext(): Promise<AuthenticatedBackendCon
 function mapBusinessChallenge(
   row: ChallengeRow,
   applicantCount = 0,
+  company?: BusinessCompanyRow | null,
 ): ChallengeSummary {
   const title = row.titulo ?? `Desafio ${row.id_desafio}`;
   const description = row.descripcion ?? 'Desafio sincronizado desde Supabase.';
@@ -767,6 +1007,7 @@ function mapBusinessChallenge(
     id: String(row.id_desafio),
     numericId: row.id_desafio,
     companyId: row.id_empresa,
+    companyName: company?.nombre_empresa ?? null,
     title,
     description,
     status: toTitleCase(status),
@@ -962,19 +1203,23 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
 
 export async function getChallenges(): Promise<ChallengeSummary[]> {
   const db = getDatabaseClient();
-  const { data, error } = await db.from('desafio').select('*');
+  const [{ data, error }, { data: applicationsData, error: applicationsError }, { data: companiesData, error: companiesError }] =
+    await Promise.all([
+      db.from('desafio').select('*'),
+      db.from('postulacion').select('id_postulacion, id_desafio'),
+      db.from('empresa').select('*'),
+    ]);
 
   if (error) {
     throw error;
   }
 
-  const challengeRows = (data ?? []) as ChallengeRow[];
-  const { data: applicationsData, error: applicationsError } = await db
-    .from('postulacion')
-    .select('id_postulacion, id_desafio');
-
   if (applicationsError) {
     throw applicationsError;
+  }
+
+  if (companiesError) {
+    throw companiesError;
   }
 
   const counts = ((applicationsData ?? []) as Array<{ id_postulacion: number; id_desafio: number | null }>).reduce<Record<number, number>>(
@@ -987,7 +1232,19 @@ export async function getChallenges(): Promise<ChallengeSummary[]> {
     {},
   );
 
-  return challengeRows.map((row) => mapBusinessChallenge(row, counts[row.id_desafio] ?? 0));
+  const challengeRows = (data ?? []) as ChallengeRow[];
+  const companies = ((companiesData ?? []) as BusinessCompanyRow[]).reduce<Record<number, BusinessCompanyRow>>((acc, company) => {
+    acc[company.id_empresa] = company;
+    return acc;
+  }, {});
+
+  return challengeRows.map((row) =>
+    mapBusinessChallenge(
+      row,
+      counts[row.id_desafio] ?? 0,
+      typeof row.id_empresa === 'number' ? companies[row.id_empresa] ?? null : null,
+    ),
+  );
 }
 
 export async function listChallenges(filters: {
@@ -1009,6 +1266,19 @@ export async function listChallenges(filters: {
   if (filters.mode) {
     items = items.filter((item) => item.mode.toLowerCase() === filters.mode!.toLowerCase());
   }
+
+  items = items.sort((left, right) => {
+    const leftFeatured = FEATURED_DEMO_COMPANY_IDS.has(left.companyId ?? -1) ? 1 : 0;
+    const rightFeatured = FEATURED_DEMO_COMPANY_IDS.has(right.companyId ?? -1) ? 1 : 0;
+
+    if (leftFeatured !== rightFeatured) {
+      return rightFeatured - leftFeatured;
+    }
+
+    const leftTime = left.publishedAt ? new Date(left.publishedAt).getTime() : 0;
+    const rightTime = right.publishedAt ? new Date(right.publishedAt).getTime() : 0;
+    return rightTime - leftTime;
+  });
 
   if (typeof filters.limit === 'number' && filters.limit > 0) {
     items = items.slice(0, filters.limit);
@@ -1046,7 +1316,17 @@ export async function createChallenge(input: {
     throw error;
   }
 
-  return mapBusinessChallenge(data as ChallengeRow, 0);
+  const { data: companyData, error: companyError } = await db
+    .from('empresa')
+    .select('*')
+    .eq('id_empresa', input.idEmpresa)
+    .maybeSingle();
+
+  if (companyError) {
+    throw companyError;
+  }
+
+  return mapBusinessChallenge(data as ChallengeRow, 0, (companyData ?? null) as BusinessCompanyRow | null);
 }
 
 export async function listApplications(filters: {
@@ -1218,16 +1498,126 @@ export async function getDemoSeedStatus(): Promise<SeedStatus> {
       ? 'Los perfiles demo ya existen en Supabase y la app puede leerlos.'
       : hasSupabaseServiceRole
         ? 'Faltan registros demo y el backend esta listo para sembrarlos con la service role key.'
-        : 'Faltan registros demo y aun no hay SUPABASE_SERVICE_ROLE_KEY configurada para sembrarlos desde el backend.',
+      : 'Faltan registros demo y aun no hay SUPABASE_SERVICE_ROLE_KEY configurada para sembrarlos desde el backend.',
   };
+}
+
+async function syncDemoChallenges(db: SupabaseClient) {
+  const titles = DEMO_CHALLENGES.map((challenge) => challenge.title);
+  const { data, error } = await db.from('desafio').select('*').in('titulo', titles);
+
+  if (error) {
+    throw error;
+  }
+
+  const existingRows = (data ?? []) as ChallengeRow[];
+  const byKey = new Map(existingRows.map((row) => [`${row.id_empresa ?? 'none'}::${row.titulo ?? ''}`, row]));
+  const challengeIdByTitle = new Map<string, number>();
+
+  for (const challenge of DEMO_CHALLENGES) {
+    const payload = {
+      id_empresa: challenge.companyId,
+      titulo: challenge.title,
+      descripcion: challenge.description,
+      especialidad_requerida: challenge.specialty,
+      presupuesto_estimado: challenge.budget,
+      modalidad: challenge.mode,
+      fecha_publicacion: challenge.publishedAt,
+      estado: challenge.status,
+    };
+
+    const existing = byKey.get(`${challenge.companyId}::${challenge.title}`);
+    if (existing) {
+      const { data: updated, error: updateError } = await db
+        .from('desafio')
+        .update(payload)
+        .eq('id_desafio', existing.id_desafio)
+        .select('id_desafio, titulo')
+        .single();
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      challengeIdByTitle.set(challenge.title, (updated as Pick<ChallengeRow, 'id_desafio'>).id_desafio);
+    } else {
+      const { data: inserted, error: insertError } = await db
+        .from('desafio')
+        .insert(payload)
+        .select('id_desafio, titulo')
+        .single();
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      challengeIdByTitle.set(challenge.title, (inserted as Pick<ChallengeRow, 'id_desafio'>).id_desafio);
+    }
+  }
+
+  return challengeIdByTitle;
+}
+
+async function syncDemoApplications(
+  db: SupabaseClient,
+  challengeIdByTitle: Map<string, number>,
+) {
+  const challengeIds = Array.from(challengeIdByTitle.values());
+  const consultantIds = Array.from(new Set(DEMO_APPLICATIONS.map((application) => application.consultantId)));
+
+  if (challengeIds.length === 0 || consultantIds.length === 0) {
+    return;
+  }
+
+  const { data, error } = await db
+    .from('postulacion')
+    .select('*')
+    .in('id_desafio', challengeIds)
+    .in('id_consultor', consultantIds);
+
+  if (error) {
+    throw error;
+  }
+
+  const existingRows = (data ?? []) as ApplicationRow[];
+  const byKey = new Map(existingRows.map((row) => [`${row.id_desafio ?? 'none'}::${row.id_consultor ?? 'none'}`, row]));
+
+  for (const application of DEMO_APPLICATIONS) {
+    const challengeId = challengeIdByTitle.get(application.challengeTitle);
+    if (!challengeId) {
+      continue;
+    }
+
+    const payload = {
+      id_desafio: challengeId,
+      id_consultor: application.consultantId,
+      mensaje_presentacion: application.coverLetter,
+      propuesta_economica: application.proposedBudget,
+      fecha_postulacion: application.appliedAt,
+      estado: application.status,
+    };
+
+    const existing = byKey.get(`${challengeId}::${application.consultantId}`);
+    if (existing) {
+      const { error: updateError } = await db
+        .from('postulacion')
+        .update(payload)
+        .eq('id_postulacion', existing.id_postulacion);
+
+      if (updateError) {
+        throw updateError;
+      }
+    } else {
+      const { error: insertError } = await db.from('postulacion').insert(payload);
+      if (insertError) {
+        throw insertError;
+      }
+    }
+  }
 }
 
 export async function seedDemoData() {
   const currentStatus = await getDemoSeedStatus();
-
-  if (currentStatus.ready) {
-    return currentStatus;
-  }
 
   if (!supabaseAdmin) {
     return currentStatus;
@@ -1254,6 +1644,17 @@ export async function seedDemoData() {
   if (consultantsError) {
     throw consultantsError;
   }
+
+  const { error: companiesError } = await supabaseAdmin
+    .from('empresa')
+    .upsert(DEMO_BUSINESS_COMPANIES, { onConflict: 'id_empresa' });
+
+  if (companiesError) {
+    throw companiesError;
+  }
+
+  const challengeIdByTitle = await syncDemoChallenges(supabaseAdmin);
+  await syncDemoApplications(supabaseAdmin, challengeIdByTitle);
 
   return getDemoSeedStatus();
 }
