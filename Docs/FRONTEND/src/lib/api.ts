@@ -168,6 +168,7 @@ export async function updateProfile(input: {
   fullName?: string;
   city?: string;
   avatarUrl?: string;
+  userType?: 'EMPRESA' | 'CONSULTOR';
   role?: string;
   bio?: string;
   expertise?: string[];

@@ -1793,6 +1793,7 @@ export async function getProfileDetails(profileId: string): Promise<ProfileDetai
 export async function updateProfileDetails(
   input: {
     profileId: string;
+    authUser?: User | null;
     fullName?: string | null;
     city?: string | null;
     avatarUrl?: string | null;
@@ -1854,9 +1855,10 @@ export async function updateProfileDetails(
     .eq('id', input.profileId)
     .maybeSingle();
 
+  const authUser = input.authUser ?? (supabaseAdmin ? await getAuthUser(input.profileId) : null);
   const { companyRecord, consultantRecord } = await resolveBusinessRecords(
     { id: input.profileId, ...profileData } as any,
-    (await getAuthUser(input.profileId)).email,
+    authUser?.email ?? null,
   );
 
   const currentUserType = input.userType || profileData?.user_type || (companyRecord ? 'EMPRESA' : 'CONSULTOR');
@@ -1945,7 +1947,41 @@ export async function updateProfileDetails(
     }
   }
 
-  return getProfileDetails(input.profileId);
+  const [updatedProfileResult, consultantResult, settings] = await Promise.all([
+    db.from('profiles').select('*').eq('id', input.profileId).single(),
+    db
+      .from('consultants')
+      .select(
+        'id, role, rating, projects, experience_years, age, bio, expertise, verified, profiles!consultants_id_fkey!inner(id, full_name, avatar_url, city, user_type, empresa_id, consultor_id, updated_at)',
+      )
+      .eq('id', input.profileId)
+      .maybeSingle(),
+    getUserSettings(input.profileId, db),
+  ]);
+
+  if (updatedProfileResult.error) {
+    throw updatedProfileResult.error;
+  }
+
+  if (consultantResult.error) {
+    throw consultantResult.error;
+  }
+
+  if (!authUser) {
+    return getProfileDetails(input.profileId);
+  }
+
+  const refreshedProfile = updatedProfileResult.data as ProfileRow;
+  const refreshedBusinessRecords = await resolveBusinessRecords(refreshedProfile, authUser.email ?? null);
+
+  return buildProfileDetails({
+    profile: refreshedProfile,
+    user: authUser,
+    consultantProfile: consultantResult.data ? mapConsultant(consultantResult.data as ConsultantRow) : null,
+    companyRecord: refreshedBusinessRecords.companyRecord,
+    consultantRecord: refreshedBusinessRecords.consultantRecord,
+    settings,
+  });
 }
 
 export async function getUserSettings(

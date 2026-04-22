@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '../../../src/lib/supabase-server';
+import { updateProfileDetails } from '../../../src/lib/backend-data';
 
 function normalizeUserType(value: string | null) {
   if (!value) {
@@ -28,24 +29,42 @@ export async function GET(request: Request) {
     const supabase = await createRouteHandlerClient();
     await supabase.auth.exchangeCodeForSession(code);
 
-    const userType = normalizeUserType(searchParams.get('userType'));
-    const fullName = normalizeText(searchParams.get('fullName'));
-    const city = normalizeText(searchParams.get('city'));
+    const requestedUserType = normalizeUserType(searchParams.get('userType'));
+    const requestedFullName = normalizeText(searchParams.get('fullName'));
+    const requestedCity = normalizeText(searchParams.get('city'));
 
-    if (userType || fullName || city) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-      if (user) {
-        const currentMetadata = (user.user_metadata ?? {}) as Record<string, unknown>;
+    if (user) {
+      const currentMetadata = (user.user_metadata ?? {}) as Record<string, unknown>;
+      const metadataUserType = normalizeUserType(
+        typeof currentMetadata.user_type === 'string' ? currentMetadata.user_type : null,
+      );
+      const metadataFullName = normalizeText(
+        typeof currentMetadata.full_name === 'string'
+          ? currentMetadata.full_name
+          : typeof currentMetadata.name === 'string'
+            ? currentMetadata.name
+            : null,
+      );
+      const metadataCity = normalizeText(
+        typeof currentMetadata.city === 'string' ? currentMetadata.city : null,
+      );
+
+      const userType = requestedUserType ?? metadataUserType;
+      const fullName = requestedFullName ?? metadataFullName;
+      const city = requestedCity ?? metadataCity;
+
+      if (requestedUserType || requestedFullName || requestedCity) {
         const nextMetadata: Record<string, unknown> = { ...currentMetadata };
 
         if (userType) {
           nextMetadata.user_type = userType;
         }
 
-        if (fullName && !currentMetadata.full_name) {
+        if (fullName) {
           nextMetadata.full_name = fullName;
         }
 
@@ -54,6 +73,19 @@ export async function GET(request: Request) {
         }
 
         await supabase.auth.updateUser({ data: nextMetadata });
+      }
+
+      if (userType || fullName || city) {
+        await updateProfileDetails(
+          {
+            profileId: user.id,
+            authUser: user,
+            userType,
+            fullName,
+            city,
+          },
+          supabase,
+        );
       }
     }
   }

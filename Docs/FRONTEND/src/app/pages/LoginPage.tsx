@@ -51,6 +51,23 @@ export function LoginPage() {
       .join(' ');
   };
 
+  const buildGoogleRedirectTo = () => {
+    const redirectUrl = new URL('/auth/callback', PUBLIC_APP_URL);
+
+    if (!isSignUp) {
+      return redirectUrl.toString();
+    }
+
+    const normalizedFullName = fullName.trim();
+    const normalizedCity = normalizeCity(city);
+
+    redirectUrl.searchParams.set('userType', userType ?? '');
+    redirectUrl.searchParams.set('fullName', normalizedFullName);
+    redirectUrl.searchParams.set('city', normalizedCity);
+
+    return redirectUrl.toString();
+  };
+
   const resetAvatarSelection = () => {
     if (avatarPreviewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(avatarPreviewUrl);
@@ -140,7 +157,14 @@ export function LoginPage() {
   };
 
   const handleGoogleLogin = async () => {
-    const redirectTo = new URL('/auth/callback', PUBLIC_APP_URL).toString();
+    if (isSignUp) {
+      if (!fullName.trim() || !city.trim() || !userType) {
+        toast.error('Completa nombre, ciudad y rol antes de continuar con Google.');
+        return;
+      }
+    }
+
+    const redirectTo = buildGoogleRedirectTo();
 
     setIsLoading(true);
     try {
@@ -327,6 +351,7 @@ export function LoginPage() {
             <Button
               type="button"
               onClick={handleGoogleLogin}
+              disabled={isLoading}
               className="w-full py-6 text-base bg-white/5 text-white border border-white/10 hover:bg-white/10 flex items-center justify-center gap-3 rounded-xl transition-all"
             >
               <img 

@@ -48,6 +48,29 @@ describe('LoginPage', () => {
     });
   });
 
+  it('includes onboarding data in Google auth during sign-up', () => {
+    signInWithOAuth.mockResolvedValue({ error: null });
+
+    render(<LoginPage />);
+    fireEvent.click(screen.getByText('Regístrate aquí'));
+    fireEvent.change(screen.getByPlaceholderText('Ej: Carlos Ruiz'), {
+      target: { value: 'Carla Gomez' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Ej: Madrid'), {
+      target: { value: 'bogota' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Soy Consultor/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Google/i }));
+
+    expect(signInWithOAuth).toHaveBeenCalledWith({
+      provider: 'google',
+      options: {
+        redirectTo:
+          'https://nexora-app-juan.vercel.app/auth/callback?userType=CONSULTOR&fullName=Carla+Gomez&city=Bogota',
+      },
+    });
+  });
+
   it('renders the login form', () => {
     render(<LoginPage />);
     expect(screen.getByText('Bienvenido')).toBeInTheDocument();
