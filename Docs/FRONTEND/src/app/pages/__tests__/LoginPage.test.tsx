@@ -43,7 +43,7 @@ describe('LoginPage', () => {
     expect(signInWithOAuth).toHaveBeenCalledWith({
       provider: 'google',
       options: {
-        redirectTo: 'http://localhost:3000/auth/callback',
+        redirectTo: 'https://nexora-app-juan.vercel.app/auth/callback',
       },
     });
   });

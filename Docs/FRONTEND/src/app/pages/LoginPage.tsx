@@ -13,6 +13,9 @@ import { useAuth } from '../context/AuthContext';
 import { Building2, Briefcase, Camera } from 'lucide-react';
 import { clearPendingAvatar, storePendingAvatar, validateAvatarFile } from '../../lib/pending-avatar';
 
+const PUBLIC_APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://nexora-app-juan.vercel.app';
+
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -137,10 +140,7 @@ export function LoginPage() {
   };
 
   const handleGoogleLogin = async () => {
-    const redirectTo =
-      typeof window === 'undefined'
-        ? '/auth/callback'
-        : new URL('/auth/callback', window.location.origin).toString();
+    const redirectTo = new URL('/auth/callback', PUBLIC_APP_URL).toString();
 
     setIsLoading(true);
     try {
