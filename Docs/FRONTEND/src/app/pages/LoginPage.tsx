@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useClerk } from '@clerk/nextjs';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -11,10 +11,21 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { Building2, Briefcase, Camera } from 'lucide-react';
-import { clearPendingAvatar, storePendingAvatar, validateAvatarFile } from '../../lib/pending-avatar';
+import { validateAvatarFile } from '../../lib/pending-avatar';
 
-const PUBLIC_APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://nexora-app-juan.vercel.app';
+function getPublicAppUrl() {
+  if (typeof window !== 'undefined' && window.location.origin) {
+    return window.location.origin;
+  }
+
+  const configuredUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+
+  if (configuredUrl) {
+    return configuredUrl;
+  }
+
+  return 'http://localhost:3000';
+}
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -24,10 +35,11 @@ export function LoginPage() {
   const [userType, setUserType] = useState<'EMPRESA' | 'CONSULTOR' | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState('');
   const router = useRouter();
   const { user } = useAuth();
+  const clerk = useClerk();
 
   useEffect(() => {
     if (user) {
@@ -42,14 +54,6 @@ export function LoginPage() {
       }
     };
   }, [avatarPreviewUrl]);
-
-  const normalizeCity = (val: string) => {
-    return val
-      .trim()
-      .split(/[\s-]+/)
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-  };
 
   const resetAvatarSelection = () => {
     if (avatarPreviewUrl.startsWith('blob:')) {
@@ -84,76 +88,22 @@ export function LoginPage() {
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (isSignUp) {
-      if (!fullName || !city || !userType) {
-        toast.error('Por favor, completa todos los campos obligatorios.');
-        return;
-      }
-    }
-
-    setIsLoading(true);
-    const normalizedCity = normalizeCity(city);
-    let pendingAvatarStored = false;
-
-    try {
-      if (isSignUp) {
-        if (avatarFile) {
-          await storePendingAvatar(avatarFile, email);
-          pendingAvatarStored = true;
-        }
-
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-              city: normalizedCity,
-              user_type: userType,
-            }
-          }
-        });
-        if (error) throw error;
-        toast.success(
-          avatarFile
-            ? '¡Registro exitoso! Tu foto se sincronizará cuando ingreses.'
-            : '¡Registro exitoso! Revisa tu correo por favor.',
-        );
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        toast.success('¡Bienvenido de nuevo!');
-        router.push('/');
-      }
-    } catch (error: any) {
-      if (pendingAvatarStored) {
-        clearPendingAvatar();
-      }
-      toast.error(error.message || 'Error en la autenticación');
-    } finally {
-      setIsLoading(false);
-    }
+    toast.info('En esta migración el acceso activo es con Google. Usa el botón de Google para entrar o crear tu cuenta.');
   };
 
   const handleGoogleLogin = async () => {
-    const redirectTo = new URL('/auth/callback', PUBLIC_APP_URL).toString();
+    const redirectTo = new URL('/sso-callback', getPublicAppUrl()).toString();
+    const redirectToComplete = new URL('/auth/complete', getPublicAppUrl()).toString();
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-        },
+      await clerk.client.signIn.authenticateWithRedirect({
+        strategy: 'oauth_google',
+        redirectUrl: redirectTo,
+        redirectUrlComplete: redirectToComplete,
       });
-
-      if (error) throw error;
     } catch (error: any) {
-      toast.error('Error con Google: ' + error.message);
+      toast.error('Error con Google: ' + (error?.errors?.[0]?.longMessage ?? error?.message ?? 'No fue posible iniciar sesión.'));
       setIsLoading(false);
     }
   };
@@ -183,6 +133,13 @@ export function LoginPage() {
             <p className="text-white/60 mb-8 text-sm">
               {isSignUp ? 'Completa tu perfil estratégico' : 'Bienvenido de nuevo a tu espacio profesional'}
             </p>
+
+            <div className="mb-6 rounded-2xl border border-[#2563EB]/20 bg-[#2563EB]/10 px-4 py-3 text-left">
+              <p className="text-sm font-semibold text-white">Google es el acceso principal en esta versión.</p>
+              <p className="mt-1 text-xs text-white/60">
+                Al entrar con Google te pediremos escoger si quieres continuar como empresa o consultor.
+              </p>
+            </div>
             
             <form onSubmit={handleEmailAuth} className="space-y-4 text-left mb-8">
               {isSignUp && (
@@ -308,13 +265,9 @@ export function LoginPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-6 text-lg bg-gradient-to-r from-[#2563EB] to-[#6D5EF3] text-white hover:opacity-90 rounded-xl transition-all shadow-xl font-bold mt-4 border-0"
+                className="w-full py-6 text-lg bg-gradient-to-r from-[#2563EB] to-[#6D5EF3] text-white hover:opacity-90 rounded-xl transition-all shadow-xl font-bold mt-4 border-0 opacity-80"
               >
-                {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  isSignUp ? 'Crear mi cuenta' : 'Ingresar'
-                )}
+                {isSignUp ? 'Registro con correo pronto' : 'Ingreso con correo pronto'}
               </Button>
             </form>
 

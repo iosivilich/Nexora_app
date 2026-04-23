@@ -10,7 +10,7 @@ function getErrorStatus(error: unknown) {
 export async function GET() {
   try {
     const context = await getAuthenticatedContext();
-    const items = await listAppointments(context.user.id, context.routeClient);
+    const items = await listAppointments(context.profileId, context.routeClient);
     return NextResponse.json({
       items,
       count: items.length,
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
     const context = await getAuthenticatedContext();
     const appointment = await scheduleAppointment({
-      profileId: context.user.id,
+      profileId: context.profileId,
       consultantId: body.consultantId,
       requestedAt: body.requestedAt,
       note: body.note ?? null,

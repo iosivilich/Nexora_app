@@ -48,7 +48,7 @@ export async function PUT(request: Request) {
     const context = await getAuthenticatedContext();
 
     const profile = await updateProfileDetails({
-      profileId: context.user.id,
+      profileId: context.profileId,
       fullName: body.fullName,
       city: body.city,
       avatarUrl: body.avatarUrl,

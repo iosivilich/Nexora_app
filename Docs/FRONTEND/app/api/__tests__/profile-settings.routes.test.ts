@@ -43,7 +43,7 @@ describe('profile and settings routes', () => {
 
   it('ignores profileId from the client when updating /api/profile/me', async () => {
     getAuthenticatedContext.mockResolvedValueOnce({
-      user: { id: 'auth-user-id' },
+      profileId: 'auth-user-id',
       routeClient,
     });
     updateProfileDetails.mockResolvedValueOnce({ id: 'auth-user-id', fullName: 'Juan' });
@@ -82,7 +82,7 @@ describe('profile and settings routes', () => {
 
   it('stores settings for the authenticated user only', async () => {
     getAuthenticatedContext.mockResolvedValueOnce({
-      user: { id: 'auth-user-id' },
+      profileId: 'auth-user-id',
       routeClient,
     });
     updateUserSettings.mockResolvedValueOnce({

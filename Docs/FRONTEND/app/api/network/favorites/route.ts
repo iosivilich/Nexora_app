@@ -14,7 +14,7 @@ function getErrorStatus(error: unknown) {
 export async function GET() {
   try {
     const context = await getAuthenticatedContext();
-    const collection = await listFavoriteConsultants(context.user.id, context.routeClient);
+    const collection = await listFavoriteConsultants(context.profileId, context.routeClient);
     return NextResponse.json(collection);
   } catch (error) {
     console.error('GET /api/network/favorites failed', error);
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     }
 
     const context = await getAuthenticatedContext();
-    const collection = await toggleFavoriteConsultant(context.user.id, body.consultantId, context.routeClient);
+    const collection = await toggleFavoriteConsultant(context.profileId, body.consultantId, context.routeClient);
     return NextResponse.json(collection);
   } catch (error) {
     console.error('POST /api/network/favorites failed', error);

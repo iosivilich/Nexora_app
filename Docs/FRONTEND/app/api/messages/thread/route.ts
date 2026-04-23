@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     }
 
     const context = await getAuthenticatedContext();
-    const thread = await getConversationThread(context.user.id, conversationId, context.routeClient);
+    const thread = await getConversationThread(context.profileId, conversationId, context.routeClient);
     return NextResponse.json(thread);
   } catch (error) {
     console.error('GET /api/messages/thread failed', error);

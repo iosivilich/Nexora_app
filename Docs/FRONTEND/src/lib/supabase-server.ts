@@ -1,32 +1,32 @@
-import { createServerClient } from '@supabase/ssr';
+import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
-import type { CookieOptions } from '@supabase/ssr';
 import { supabaseAnonKey, supabaseServiceRoleKey, supabaseUrl } from './supabase-config';
 
-type CookieToSet = {
-  name: string;
-  value: string;
-  options?: CookieOptions;
-};
-
 export async function createRouteHandlerClient() {
-  const cookieStore = await cookies();
+  if (supabaseServiceRoleKey) {
+    // Server routes already validate the user with Clerk, so prefer the
+    // service role client instead of depending on Clerk JWT verification in Supabase.
+    return createAdminClient();
+  }
 
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet: CookieToSet[]) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
-          });
-        } catch {
-          // Route handlers can safely ignore cookie writes during render-only phases.
-        }
-      },
+  let accessToken: string | null = null;
+
+  try {
+    const authState = await auth();
+    accessToken = await authState.getToken();
+  } catch {
+    accessToken = null;
+  }
+
+  return createServerSupabaseClient(accessToken);
+}
+
+export function createServerSupabaseClient(accessToken?: string | null) {
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    accessToken: async () => accessToken ?? null,
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
     },
   });
 }

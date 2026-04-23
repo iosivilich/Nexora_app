@@ -25,11 +25,7 @@ describe('/api/profile/avatar', () => {
   const upload = vi.fn();
   const remove = vi.fn();
   const getPublicUrl = vi.fn();
-  const routeClient = {
-    auth: {
-      updateUser: vi.fn(),
-    },
-  };
+  const routeClient = { kind: 'route-client' };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -41,7 +37,6 @@ describe('/api/profile/avatar', () => {
         publicUrl: 'https://ofsuxhgyxzjhlboektvd.supabase.co/storage/v1/object/public/avatars/auth-user-id/avatar.png',
       },
     });
-    routeClient.auth.updateUser.mockResolvedValue({ error: null });
 
     createAdminClient.mockReturnValue({
       storage: {
@@ -59,7 +54,7 @@ describe('/api/profile/avatar', () => {
 
   it('uploads the avatar for the authenticated user', async () => {
     getAuthenticatedContext.mockResolvedValueOnce({
-      user: { id: 'auth-user-id' },
+      profileId: 'auth-user-id',
       routeClient,
     });
     updateProfileDetails.mockResolvedValueOnce({
@@ -92,17 +87,11 @@ describe('/api/profile/avatar', () => {
       },
       routeClient,
     );
-    expect(routeClient.auth.updateUser).toHaveBeenCalledWith({
-      data: {
-        avatar_url:
-          'https://ofsuxhgyxzjhlboektvd.supabase.co/storage/v1/object/public/avatars/auth-user-id/avatar.png',
-      },
-    });
   });
 
   it('rejects unsupported file types', async () => {
     getAuthenticatedContext.mockResolvedValueOnce({
-      user: { id: 'auth-user-id' },
+      profileId: 'auth-user-id',
       routeClient,
     });
 

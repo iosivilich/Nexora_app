@@ -1,3 +1,4 @@
+import { auth, currentUser } from '@clerk/nextjs/server';
 import type {
   ChallengeSummary,
   CityCoverageItem,
@@ -16,8 +17,8 @@ import type {
   MessageThreadItem,
   AppointmentSummary,
 } from './backend-types';
-import type { SupabaseClient, User } from '@supabase/supabase-js';
-import { createRouteHandlerClient } from './supabase-server';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { createAdminClient, createRouteHandlerClient } from './supabase-server';
 import { hasSupabaseServiceRole, supabaseAdmin, supabasePublic } from './supabase';
 
 type ProfileRow = {
@@ -26,9 +27,18 @@ type ProfileRow = {
   avatar_url: string | null;
   city: string | null;
   user_type: string | null;
+  auth_provider?: string | null;
+  auth_subject?: string | null;
+  primary_email?: string | null;
   empresa_id?: number | null;
   consultor_id?: number | null;
   updated_at?: string | null;
+};
+
+type AuthUser = {
+  id: string;
+  email: string | null;
+  user_metadata: Record<string, unknown>;
 };
 
 type ConsultantRow = {
@@ -143,7 +153,9 @@ type AppointmentRow = {
 
 export type AuthenticatedBackendContext = {
   routeClient: SupabaseClient;
-  user: User;
+  user: AuthUser;
+  clerkUserId: string;
+  profileId: string;
   profile: ProfileRow;
   consultantProfile: ConsultantDirectoryItem | null;
   companyRecord: BusinessCompanyRow | null;
@@ -630,6 +642,10 @@ function getDatabaseClient() {
   return supabaseAdmin ?? supabasePublic;
 }
 
+function getAuthenticatedDatabaseClient(routeClient?: SupabaseClient) {
+  return routeClient ?? supabaseAdmin ?? supabasePublic;
+}
+
 function normalizeQueryValue(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -652,11 +668,11 @@ function normalizeUserType(value: unknown): 'EMPRESA' | 'CONSULTOR' | null {
   return normalized === 'EMPRESA' || normalized === 'CONSULTOR' ? normalized : null;
 }
 
-function getAuthMetadata(user: User) {
-  return (user.user_metadata ?? {}) as Record<string, unknown>;
+function getAuthMetadata(user?: AuthUser | null) {
+  return (user?.user_metadata ?? {}) as Record<string, unknown>;
 }
 
-function buildProfilePayloadFromAuthUser(user: User) {
+function buildProfilePayloadFromAuthUser(user: AuthUser) {
   const metadata = getAuthMetadata(user);
   const fullName =
     readString(metadata, ['full_name', 'name']) ??
@@ -671,6 +687,9 @@ function buildProfilePayloadFromAuthUser(user: User) {
     avatar_url: avatarUrl,
     city,
     user_type: userType,
+    auth_provider: 'clerk',
+    auth_subject: user.id,
+    primary_email: user.email?.toLowerCase() ?? null,
     updated_at: new Date().toISOString(),
   };
 }
@@ -708,49 +727,97 @@ function formatTimeLabel(dateValue: string) {
   });
 }
 
-async function getAuthUser(profileId: string) {
-  if (!supabaseAdmin) {
-    throw createRuntimeError('La SUPABASE_SERVICE_ROLE_KEY es necesaria para acceder a metadata del usuario.', 503);
+function getClerkPrimaryEmail(user: Awaited<ReturnType<typeof currentUser>>) {
+  if (!user) {
+    return null;
   }
 
-  const { data, error } = await supabaseAdmin.auth.admin.getUserById(profileId);
+  const primaryEmail =
+    user.emailAddresses.find((item) => item.id === user.primaryEmailAddressId) ??
+    user.emailAddresses[0] ??
+    null;
 
-  if (error) {
-    throw error;
-  }
-
-  if (!data.user) {
-    throw createRuntimeError('No encontramos un usuario autenticado con ese profileId.', 404);
-  }
-
-  return data.user;
+  return primaryEmail?.emailAddress ?? null;
 }
 
-async function patchUserMetadata(
-  profileId: string,
-  patch: (metadata: Record<string, unknown>) => Record<string, unknown>,
-) {
-  const user = await getAuthUser(profileId);
-  const nextMetadata = patch((user.user_metadata ?? {}) as Record<string, unknown>);
-  const { error } = await supabaseAdmin!.auth.admin.updateUserById(profileId, {
-    user_metadata: nextMetadata,
-  });
+function buildAuthUserFromClerk(userId: string, user: Awaited<ReturnType<typeof currentUser>>): AuthUser {
+  const email = getClerkPrimaryEmail(user);
+  const publicMetadata =
+    user && typeof user.publicMetadata === 'object' && user.publicMetadata
+      ? (user.publicMetadata as Record<string, unknown>)
+      : {};
+  const unsafeMetadata =
+    user && typeof user.unsafeMetadata === 'object' && user.unsafeMetadata
+      ? (user.unsafeMetadata as Record<string, unknown>)
+      : {};
+  const privateMetadata =
+    user && typeof user.privateMetadata === 'object' && user.privateMetadata
+      ? (user.privateMetadata as Record<string, unknown>)
+      : {};
 
-  if (error) {
-    throw error;
+  return {
+    id: userId,
+    email,
+    user_metadata: {
+      ...privateMetadata,
+      ...publicMetadata,
+      ...unsafeMetadata,
+      full_name: user?.fullName ?? readString(unsafeMetadata, ['full_name', 'name']) ?? readString(publicMetadata, ['full_name', 'name']),
+      name: user?.fullName ?? readString(unsafeMetadata, ['name', 'full_name']) ?? readString(publicMetadata, ['name', 'full_name']),
+      avatar_url: user?.imageUrl ?? readString(unsafeMetadata, ['avatar_url', 'picture']) ?? readString(publicMetadata, ['avatar_url', 'picture']),
+      picture: user?.imageUrl ?? readString(unsafeMetadata, ['picture', 'avatar_url']) ?? readString(publicMetadata, ['picture', 'avatar_url']),
+      city: readString(unsafeMetadata, ['city']) ?? readString(publicMetadata, ['city']),
+      user_type:
+        normalizeUserType(unsafeMetadata.user_type) ??
+        normalizeUserType(unsafeMetadata.userType) ??
+        normalizeUserType(publicMetadata.user_type) ??
+        normalizeUserType(publicMetadata.userType),
+    },
+  };
+}
+
+function isMissingColumnError(error: { code?: string; message?: string } | null) {
+  if (!error) {
+    return false;
   }
+
+  return error.code === 'PGRST204' || error.code === '42703' || /column/i.test(error.message ?? '');
+}
+
+async function findProfileByAuthUser(user: AuthUser, db: SupabaseClient) {
+  const normalizedEmail = user.email?.trim().toLowerCase() ?? null;
+
+  const bySubjectResult = await db.from('profiles').select('*').eq('auth_subject', user.id).maybeSingle();
+  if (!isMissingColumnError(bySubjectResult.error) && bySubjectResult.error) {
+    throw bySubjectResult.error;
+  }
+
+  if (bySubjectResult.data) {
+    return bySubjectResult.data as ProfileRow;
+  }
+
+  if (!normalizedEmail) {
+    return null;
+  }
+
+  const byEmailResult = await db.from('profiles').select('*').ilike('primary_email', normalizedEmail).limit(1).maybeSingle();
+  if (!isMissingColumnError(byEmailResult.error) && byEmailResult.error) {
+    throw byEmailResult.error;
+  }
+
+  return (byEmailResult.data ?? null) as ProfileRow | null;
 }
 
 async function syncProfileFromAuthUser(
   profile: ProfileRow | null,
-  user: User,
+  user: AuthUser,
   db: SupabaseClient = getDatabaseClient(),
 ) {
   const payload = buildProfilePayloadFromAuthUser(user);
 
   if (!profile) {
     const insertPayload = {
-      id: user.id,
+      id: crypto.randomUUID(),
       ...payload,
     };
 
@@ -764,6 +831,18 @@ async function syncProfileFromAuthUser(
   }
 
   const updates: Partial<ProfileRow> = {};
+
+  if (payload.auth_provider && profile.auth_provider !== payload.auth_provider) {
+    updates.auth_provider = payload.auth_provider;
+  }
+
+  if (payload.auth_subject && profile.auth_subject !== payload.auth_subject) {
+    updates.auth_subject = payload.auth_subject;
+  }
+
+  if (payload.primary_email && profile.primary_email?.toLowerCase() !== payload.primary_email.toLowerCase()) {
+    updates.primary_email = payload.primary_email;
+  }
 
   if (payload.full_name && !profile.full_name) {
     updates.full_name = payload.full_name;
@@ -787,7 +866,7 @@ async function syncProfileFromAuthUser(
 
   updates.updated_at = new Date().toISOString();
 
-  const { data, error } = await db.from('profiles').update(updates).eq('id', user.id).select('*').single();
+  const { data, error } = await db.from('profiles').update(updates).eq('id', profile.id).select('*').single();
 
   if (error) {
     throw error;
@@ -824,8 +903,11 @@ function toUserSettingsRow(userId: string, settings: UserSettings) {
   };
 }
 
-async function resolveBusinessRecords(profile: ProfileRow, email?: string | null) {
-  const db = getDatabaseClient();
+async function resolveBusinessRecords(
+  profile: ProfileRow,
+  email?: string | null,
+  db: SupabaseClient = getDatabaseClient(),
+) {
   const normalizedEmail = normalizeQueryValue(email)?.toLowerCase() ?? null;
   const fallbackDisplayName =
     normalizeQueryValue(profile.full_name) ??
@@ -948,47 +1030,78 @@ async function resolveBusinessRecords(profile: ProfileRow, email?: string | null
 }
 
 export async function getAuthenticatedContext(): Promise<AuthenticatedBackendContext> {
-  const routeClient = await createRouteHandlerClient();
-  const {
-    data: { user },
-    error,
-  } = await routeClient.auth.getUser();
+  const authState = await auth();
+  const clerkUserId = authState.userId;
 
-  if (error || !user) {
+  if (!clerkUserId) {
     throw createRuntimeError('Debes iniciar sesión para acceder a este recurso.', 401);
   }
 
-  const db = getDatabaseClient();
-  const [profileResult, consultantResult] = await Promise.all([
-    db.from('profiles').select('*').eq('id', user.id).maybeSingle(),
-    db
-      .from('consultants')
-      .select(
-        'id, role, rating, projects, experience_years, age, bio, expertise, verified, profiles!consultants_id_fkey(id, full_name, avatar_url, city, user_type, empresa_id, consultor_id, updated_at)',
-      )
-      .eq('id', user.id)
-      .maybeSingle(),
-  ]);
-
-  if (profileResult.error) {
-    throw profileResult.error;
+  const clerkUser = await currentUser();
+  if (!clerkUser) {
+    throw createRuntimeError('No pudimos cargar la sesión autenticada de Clerk.', 401);
   }
 
-  if (consultantResult.error) {
-    throw consultantResult.error;
+  const user = buildAuthUserFromClerk(clerkUserId, clerkUser);
+  const routeClient = await createRouteHandlerClient();
+  const db = getAuthenticatedDatabaseClient(routeClient);
+  const linkedProfile = await findProfileByAuthUser(user, db);
+  const profile = await syncProfileFromAuthUser(linkedProfile, user, db);
+
+  const { data: consultantData, error: consultantError } = await db
+    .from('consultants')
+    .select(
+      'id, role, rating, projects, experience_years, age, bio, expertise, verified, profiles!consultants_id_fkey(id, full_name, avatar_url, city, user_type, auth_provider, auth_subject, primary_email, empresa_id, consultor_id, updated_at)',
+    )
+    .eq('id', profile.id)
+    .maybeSingle();
+
+  if (consultantError) {
+    throw consultantError;
   }
 
-  const profile = await syncProfileFromAuthUser(profileResult.data as ProfileRow | null, user, routeClient);
-
-  const { companyRecord, consultantRecord } = await resolveBusinessRecords(profile, user.email ?? null);
+  const { companyRecord, consultantRecord } = await resolveBusinessRecords(profile, user.email ?? null, db);
 
   return {
     routeClient,
     user,
+    clerkUserId,
+    profileId: profile.id,
     profile,
-    consultantProfile: consultantResult.data ? mapConsultant(consultantResult.data as ConsultantRow) : null,
+    consultantProfile: consultantData ? mapConsultant(consultantData as ConsultantRow) : null,
     companyRecord,
     consultantRecord,
+  };
+}
+async function getAuthUserByProfileId(
+  profileId: string,
+  db: SupabaseClient = getDatabaseClient(),
+): Promise<AuthUser | null> {
+  const { data, error } = await db
+    .from('profiles')
+    .select('id, auth_subject, primary_email, full_name, avatar_url, city, user_type')
+    .eq('id', profileId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const profile = data as ProfileRow;
+
+  return {
+    id: profile.auth_subject ?? profile.id,
+    email: profile.primary_email ?? null,
+    user_metadata: {
+      full_name: profile.full_name,
+      avatar_url: profile.avatar_url,
+      city: profile.city,
+      user_type: profile.user_type,
+    },
   };
 }
 
@@ -1201,8 +1314,9 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
   };
 }
 
-export async function getChallenges(): Promise<ChallengeSummary[]> {
-  const db = getDatabaseClient();
+export async function getChallenges(
+  db: SupabaseClient = getDatabaseClient(),
+): Promise<ChallengeSummary[]> {
   const [{ data, error }, { data: applicationsData, error: applicationsError }, { data: companiesData, error: companiesError }] =
     await Promise.all([
       db.from('desafio').select('*'),
@@ -1252,8 +1366,8 @@ export async function listChallenges(filters: {
   status?: string | null;
   mode?: string | null;
   limit?: number | null;
-}) {
-  let items = await getChallenges();
+}, db: SupabaseClient = getDatabaseClient()) {
+  let items = await getChallenges(db);
 
   if (typeof filters.idEmpresa === 'number') {
     items = items.filter((item) => item.companyId === filters.idEmpresa);
@@ -1295,8 +1409,7 @@ export async function createChallenge(input: {
   budget?: number | null;
   mode?: string | null;
   status?: string | null;
-}) {
-  const db = getDatabaseClient();
+}, db: SupabaseClient = getDatabaseClient()) {
   const { data, error } = await db
     .from('desafio')
     .insert({
@@ -1334,8 +1447,7 @@ export async function listApplications(filters: {
   idEmpresa?: number | null;
   idDesafio?: number | null;
   status?: string | null;
-}) {
-  const db = getDatabaseClient();
+}, db: SupabaseClient = getDatabaseClient()) {
   let query = db.from('postulacion').select('*').order('fecha_postulacion', { ascending: false });
 
   if (typeof filters.idConsultor === 'number') {
@@ -1432,8 +1544,7 @@ export async function createApplication(input: {
   coverLetter: string;
   proposedBudget?: number | null;
   status?: string | null;
-}) {
-  const db = getDatabaseClient();
+}, db: SupabaseClient = getDatabaseClient()) {
   const { data, error } = await db
     .from('postulacion')
     .insert({
@@ -1451,7 +1562,7 @@ export async function createApplication(input: {
     throw error;
   }
 
-  const items = await listApplications({ idDesafio: input.idDesafio });
+  const items = await listApplications({ idDesafio: input.idDesafio }, db);
   return items.find((item) => item.id === (data as ApplicationRow).id_postulacion) ?? mapApplication(data as ApplicationRow);
 }
 
@@ -1694,7 +1805,7 @@ function mapConsultantRecord(consultantRecord: BusinessConsultorRow | null) {
 
 function buildProfileDetails(input: {
   profile: ProfileRow;
-  user: User;
+  user: AuthUser | null;
   consultantProfile: ConsultantDirectoryItem | null;
   companyRecord: BusinessCompanyRow | null;
   consultantRecord: BusinessConsultorRow | null;
@@ -1716,7 +1827,7 @@ function buildProfileDetails(input: {
     avatarUrl: buildAvatar(fullName || 'Nexora', avatarUrl),
     city,
     userType,
-    email: input.user.email ?? null,
+    email: input.user?.email ?? input.profile.primary_email ?? null,
     updatedAt: input.profile.updated_at ?? null,
     consultantProfile: input.consultantProfile,
     companyRecord: mapCompanyRecord(input.companyRecord),
@@ -1741,7 +1852,7 @@ async function getUserSettingsRow(
 export async function getCurrentProfileDetails(
   context: AuthenticatedBackendContext,
 ): Promise<ProfileDetails> {
-  const settings = await getUserSettings(context.user.id, context.routeClient);
+  const settings = await getUserSettings(context.profileId, context.routeClient);
 
   return buildProfileDetails({
     profile: context.profile,
@@ -1753,15 +1864,18 @@ export async function getCurrentProfileDetails(
   });
 }
 
-export async function getProfileDetails(profileId: string): Promise<ProfileDetails> {
-  const db = getDatabaseClient();
-  const [authUser, profileResult, consultantResult, settingsRow] = await Promise.all([
-    getAuthUser(profileId),
+export async function getProfileDetails(
+  profileId: string,
+  db: SupabaseClient = getDatabaseClient(),
+  authUser?: AuthUser | null,
+): Promise<ProfileDetails> {
+  const [resolvedAuthUser, profileResult, consultantResult, settingsRow] = await Promise.all([
+    authUser === undefined ? getAuthUserByProfileId(profileId, db) : Promise.resolve(authUser),
     db.from('profiles').select('*').eq('id', profileId).maybeSingle(),
     db
       .from('consultants')
       .select(
-        'id, role, rating, projects, experience_years, age, bio, expertise, verified, profiles!consultants_id_fkey!inner(id, full_name, avatar_url, city, user_type, empresa_id, consultor_id, updated_at)',
+        'id, role, rating, projects, experience_years, age, bio, expertise, verified, profiles!consultants_id_fkey!inner(id, full_name, avatar_url, city, user_type, auth_provider, auth_subject, primary_email, empresa_id, consultor_id, updated_at)',
       )
       .eq('id', profileId)
       .maybeSingle(),
@@ -1776,13 +1890,20 @@ export async function getProfileDetails(profileId: string): Promise<ProfileDetai
     throw consultantResult.error;
   }
 
-  const profile = await syncProfileFromAuthUser(profileResult.data as ProfileRow | null, authUser, db);
+  if (!profileResult.data) {
+    throw createRuntimeError('No encontramos un perfil asociado a esta cuenta.', 404);
+  }
 
-  const { companyRecord, consultantRecord } = await resolveBusinessRecords(profile, authUser.email ?? null);
+  const profile =
+    resolvedAuthUser !== null
+      ? await syncProfileFromAuthUser(profileResult.data as ProfileRow | null, resolvedAuthUser, db)
+      : (profileResult.data as ProfileRow);
+
+  const { companyRecord, consultantRecord } = await resolveBusinessRecords(profile, resolvedAuthUser?.email ?? null, db);
 
   return buildProfileDetails({
     profile,
-    user: authUser,
+    user: resolvedAuthUser,
     consultantProfile: consultantResult.data ? mapConsultant(consultantResult.data as ConsultantRow) : null,
     companyRecord,
     consultantRecord,
@@ -1812,6 +1933,21 @@ export async function updateProfileDetails(
   },
   db: SupabaseClient = getDatabaseClient(),
 ) {
+  const currentProfileResult = await db
+    .from('profiles')
+    .select('*')
+    .eq('id', input.profileId)
+    .maybeSingle();
+
+  if (currentProfileResult.error) {
+    throw currentProfileResult.error;
+  }
+
+  const currentProfile = (currentProfileResult.data ?? null) as ProfileRow | null;
+  if (!currentProfile) {
+    throw createRuntimeError('No encontramos el perfil que intentas actualizar.', 404);
+  }
+
   const profileUpdates: Record<string, unknown> = {};
 
   if (typeof input.fullName === 'string') {
@@ -1828,21 +1964,11 @@ export async function updateProfileDetails(
 
   if (input.userType) {
     profileUpdates.user_type = input.userType;
-    // Sincronizar con metadata de auth para consistencia
-    if (supabaseAdmin) {
-      await patchUserMetadata(input.profileId, (metadata) => ({
-        ...metadata,
-        user_type: input.userType,
-      }));
-    }
   }
 
   if (Object.keys(profileUpdates).length > 0) {
     profileUpdates.updated_at = new Date().toISOString();
-    const { error } = await db.from('profiles').upsert({
-      id: input.profileId,
-      ...profileUpdates,
-    });
+    const { error } = await db.from('profiles').update(profileUpdates).eq('id', input.profileId);
     if (error) {
       throw error;
     }
@@ -1855,8 +1981,9 @@ export async function updateProfileDetails(
     .maybeSingle();
 
   const { companyRecord, consultantRecord } = await resolveBusinessRecords(
-    { id: input.profileId, ...profileData } as any,
-    (await getAuthUser(input.profileId)).email,
+    { ...currentProfile, ...profileData, id: input.profileId } as ProfileRow,
+    currentProfile.primary_email ?? null,
+    db,
   );
 
   const currentUserType = input.userType || profileData?.user_type || (companyRecord ? 'EMPRESA' : 'CONSULTOR');
@@ -1945,7 +2072,16 @@ export async function updateProfileDetails(
     }
   }
 
-  return getProfileDetails(input.profileId);
+  return getProfileDetails(input.profileId, db, {
+    id: currentProfile.auth_subject ?? input.profileId,
+    email: currentProfile.primary_email ?? null,
+    user_metadata: {
+      full_name: typeof input.fullName === 'string' ? input.fullName : currentProfile.full_name,
+      avatar_url: typeof input.avatarUrl === 'string' ? input.avatarUrl : currentProfile.avatar_url,
+      city: typeof input.city === 'string' ? input.city : currentProfile.city,
+      user_type: input.userType ?? currentProfile.user_type,
+    },
+  });
 }
 
 export async function getUserSettings(
@@ -1982,11 +2118,32 @@ export async function updateUserSettings(
 }
 
 export async function updateUserPassword(profileId: string, newPassword: string) {
+  const db = getDatabaseClient();
+  const { data: profileData, error: profileError } = await db
+    .from('profiles')
+    .select('id, auth_provider, auth_subject')
+    .eq('id', profileId)
+    .maybeSingle();
+
+  if (profileError) {
+    throw profileError;
+  }
+
+  const profile = (profileData ?? null) as ProfileRow | null;
+  if (!profile) {
+    throw createRuntimeError('No encontramos el perfil que intenta cambiar la contraseña.', 404);
+  }
+
+  if (profile.auth_provider === 'clerk' || (profile.auth_subject && !/^[0-9a-f-]{36}$/i.test(profile.auth_subject))) {
+    throw createRuntimeError('Las cuentas que ingresan con Google/Clerk gestionan su contraseña fuera de Nexora.', 400);
+  }
+
   if (!supabaseAdmin) {
     throw createRuntimeError('La SUPABASE_SERVICE_ROLE_KEY es necesaria para cambiar la contraseña.', 503);
   }
 
-  const { error } = await supabaseAdmin.auth.admin.updateUserById(profileId, {
+  const authUserId = profile.auth_subject ?? profile.id;
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(authUserId, {
     password: newPassword,
   });
 

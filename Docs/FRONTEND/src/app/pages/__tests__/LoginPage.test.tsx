@@ -1,23 +1,23 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { LoginPage } from '../LoginPage';
 
-const { signInWithOAuth } = vi.hoisted(() => ({
-  signInWithOAuth: vi.fn(),
+const { authenticateWithRedirect } = vi.hoisted(() => ({
+  authenticateWithRedirect: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
-vi.mock('../../../lib/supabase', () => ({
-  supabase: {
-    auth: {
-      signUp: vi.fn(),
-      signInWithPassword: vi.fn(),
-      signInWithOAuth,
+vi.mock('@clerk/nextjs', () => ({
+  useClerk: () => ({
+    client: {
+      signIn: {
+        authenticateWithRedirect,
+      },
     },
-  },
+  }),
 }));
 
 vi.mock('../../context/AuthContext', () => ({
@@ -32,26 +32,49 @@ vi.mock('../../context/AuthContext', () => ({
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://nexora-repo.vercel.app');
+    window.history.replaceState({}, '', '/login');
   });
 
-  it('starts Google auth with the callback route', () => {
-    signInWithOAuth.mockResolvedValue({ error: null });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('starts Clerk Google auth with the current origin callback routes', async () => {
+    authenticateWithRedirect.mockResolvedValue(undefined);
 
     render(<LoginPage />);
     fireEvent.click(screen.getByRole('button', { name: /Google/ }));
 
-    expect(signInWithOAuth).toHaveBeenCalledWith({
-      provider: 'google',
-      options: {
-        redirectTo: 'https://nexora-app-juan.vercel.app/auth/callback',
-      },
-    });
+    await waitFor(() =>
+      expect(authenticateWithRedirect).toHaveBeenCalledWith({
+        strategy: 'oauth_google',
+        redirectUrl: 'http://localhost:3000/sso-callback',
+        redirectUrlComplete: 'http://localhost:3000/auth/complete',
+      }),
+    );
+  });
+
+  it('prefers the browser origin over a configured app url', async () => {
+    authenticateWithRedirect.mockResolvedValue(undefined);
+
+    render(<LoginPage />);
+    fireEvent.click(screen.getByRole('button', { name: /Google/ }));
+
+    await waitFor(() =>
+      expect(authenticateWithRedirect).toHaveBeenCalledWith({
+        strategy: 'oauth_google',
+        redirectUrl: 'http://localhost:3000/sso-callback',
+        redirectUrlComplete: 'http://localhost:3000/auth/complete',
+      }),
+    );
   });
 
   it('renders the login form', () => {
     render(<LoginPage />);
     expect(screen.getByText('Bienvenido')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('tu@ejemplo.com')).toBeInTheDocument();
+    expect(screen.getByText(/Google es el acceso principal/i)).toBeInTheDocument();
   });
 
   it('toggles between sign-in and sign-up', () => {

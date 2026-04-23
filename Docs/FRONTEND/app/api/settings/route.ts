@@ -11,7 +11,7 @@ function getErrorStatus(error: unknown) {
 export async function GET() {
   try {
     const context = await getAuthenticatedContext();
-    const settings = await getUserSettings(context.user.id, context.routeClient);
+    const settings = await getUserSettings(context.profileId, context.routeClient);
     return NextResponse.json(settings);
   } catch (error) {
     console.error('GET /api/settings failed', error);
@@ -36,7 +36,7 @@ export async function PUT(request: Request) {
     }
 
     const context = await getAuthenticatedContext();
-    const settings = await updateUserSettings(context.user.id, body.settings, context.routeClient);
+    const settings = await updateUserSettings(context.profileId, body.settings, context.routeClient);
     return NextResponse.json(settings);
   } catch (error) {
     console.error('PUT /api/settings failed', error);

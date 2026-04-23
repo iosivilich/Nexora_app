@@ -28,7 +28,7 @@ export async function PUT(request: Request) {
     }
 
     const context = await getAuthenticatedContext();
-    const result = await updateUserPassword(context.user.id, body.newPassword);
+    const result = await updateUserPassword(context.profileId, body.newPassword);
     return NextResponse.json(result);
   } catch (error) {
     console.error('PUT /api/settings/password failed', error);

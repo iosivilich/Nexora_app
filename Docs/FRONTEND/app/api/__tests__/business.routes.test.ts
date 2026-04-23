@@ -26,12 +26,15 @@ import { GET as getChallenges, POST as postChallenges } from '../challenges/rout
 import { GET as getApplications, POST as postApplications } from '../applications/route';
 
 describe('business routes', () => {
+  const routeClient = { kind: 'route-client' };
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('lets an authenticated company list only its own challenges with scope=mine', async () => {
     getAuthenticatedContext.mockResolvedValueOnce({
+      routeClient,
       profile: { user_type: 'EMPRESA' },
       companyRecord: { id_empresa: 17 },
     });
@@ -47,7 +50,7 @@ describe('business routes', () => {
       status: null,
       mode: null,
       limit: null,
-    });
+    }, routeClient);
   });
 
   it('prevents a consultant from creating challenges', async () => {
@@ -74,6 +77,7 @@ describe('business routes', () => {
 
   it('creates challenges using the linked company from the session', async () => {
     getAuthenticatedContext.mockResolvedValueOnce({
+      routeClient,
       profile: { user_type: 'EMPRESA' },
       companyRecord: { id_empresa: 99 },
     });
@@ -101,11 +105,12 @@ describe('business routes', () => {
       budget: null,
       mode: null,
       status: null,
-    });
+    }, routeClient);
   });
 
   it('lets a company list only applications for its own projects', async () => {
     getAuthenticatedContext.mockResolvedValueOnce({
+      routeClient,
       profile: { user_type: 'EMPRESA' },
       companyRecord: { id_empresa: 44 },
     });
@@ -119,7 +124,7 @@ describe('business routes', () => {
       idEmpresa: 44,
       idDesafio: null,
       status: null,
-    });
+    }, routeClient);
   });
 
   it('prevents a company from creating consultant applications', async () => {
@@ -145,6 +150,7 @@ describe('business routes', () => {
 
   it('creates applications using the linked consultant from the session', async () => {
     getAuthenticatedContext.mockResolvedValueOnce({
+      routeClient,
       profile: { user_type: 'CONSULTOR' },
       consultantRecord: { id_consultor: 55 },
     });
@@ -170,6 +176,6 @@ describe('business routes', () => {
       coverLetter: 'Tengo experiencia relevante',
       proposedBudget: 5000,
       status: null,
-    });
+    }, routeClient);
   });
 });

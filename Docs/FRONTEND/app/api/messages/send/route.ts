@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
     const context = await getAuthenticatedContext();
     const thread = await sendConversationMessage({
-      profileId: context.user.id,
+      profileId: context.profileId,
       conversationId: body.conversationId,
       text: body.text,
     }, context.routeClient);

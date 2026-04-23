@@ -2,16 +2,15 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { AuthProvider, useAuth } from '../AuthContext';
 
-vi.mock('../../../lib/supabase', () => ({
-  supabase: {
-    auth: {
-      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
-      onAuthStateChange: vi.fn().mockReturnValue({
-        data: { subscription: { unsubscribe: vi.fn() } },
-      }),
-      signOut: vi.fn(),
-    },
-  },
+vi.mock('@clerk/nextjs', () => ({
+  useUser: () => ({
+    isLoaded: true,
+    isSignedIn: false,
+    user: null,
+  }),
+  useClerk: () => ({
+    signOut: vi.fn(),
+  }),
 }));
 
 function TestConsumer() {
@@ -29,8 +28,10 @@ describe('AuthContext', () => {
     render(
       <AuthProvider>
         <TestConsumer />
-      </AuthProvider>
+      </AuthProvider>,
     );
+
+    expect(screen.getByTestId('loading')).toHaveTextContent('false');
     expect(screen.getByTestId('user')).toHaveTextContent('logged-out');
   });
 });

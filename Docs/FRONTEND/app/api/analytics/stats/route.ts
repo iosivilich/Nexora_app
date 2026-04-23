@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const context = await getAuthenticatedContext();
     const stats = await getAnalyticsStats({
-      profileId: context.user.id,
+      profileId: context.profileId,
       idEmpresa: toNumber(searchParams.get('idEmpresa')) ?? context.companyRecord?.id_empresa ?? null,
       idConsultor: toNumber(searchParams.get('idConsultor')) ?? context.consultantRecord?.id_consultor ?? null,
     });

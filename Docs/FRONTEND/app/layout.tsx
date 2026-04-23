@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from '@clerk/nextjs';
 import { Providers } from "./providers";
 import "../src/styles/index.css";
 
@@ -26,7 +27,9 @@ export default function RootLayout({
         <meta name="theme-color" content="#2563EB" />
       </head>
       <body>
-        <Providers>{children}</Providers>
+        <ClerkProvider>
+          <Providers>{children}</Providers>
+        </ClerkProvider>
       </body>
     </html>
   );

@@ -44,7 +44,7 @@ export async function GET(request: Request) {
       idEmpresa: effectiveEmpresaId,
       idDesafio: toNumber(searchParams.get('idDesafio')),
       status: searchParams.get('status'),
-    });
+    }, context.routeClient);
 
     return NextResponse.json({
       items,
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
       coverLetter: body.coverLetter,
       proposedBudget: body.proposedBudget ?? null,
       status: body.status ?? null,
-    });
+    }, context.routeClient);
 
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
