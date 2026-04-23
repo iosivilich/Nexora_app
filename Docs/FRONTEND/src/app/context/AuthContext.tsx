@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useClerk, useUser } from '@clerk/nextjs';
 import { fetchProfile, uploadProfileAvatar } from '../../lib/api';
 import type { ProfileDetails } from '../../lib/backend-types';
+import { isClerkClientConfigured } from '../../lib/clerk-client';
 import { clearPendingAvatar, dataUrlToFile, getPendingAvatar } from '../../lib/pending-avatar';
 
 type AuthUser = {
@@ -64,7 +65,7 @@ function buildClientUser(user: ClerkUser): AuthUser {
   };
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn, user: clerkUser } = useUser();
   const { signOut: clerkSignOut } = useClerk();
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -195,6 +196,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
+}
+
+function DisabledAuthProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthContext.Provider
+      value={{
+        user: null,
+        profile: null,
+        loading: false,
+        signOut: async () => {},
+        updateProfile: async () => {
+          throw new Error('Clerk no esta configurado en este despliegue.');
+        },
+        refreshProfile: async () => {},
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  if (!isClerkClientConfigured) {
+    return <DisabledAuthProvider>{children}</DisabledAuthProvider>;
+  }
+
+  return <ClerkAuthProvider>{children}</ClerkAuthProvider>;
 }
 
 export const useAuth = () => {

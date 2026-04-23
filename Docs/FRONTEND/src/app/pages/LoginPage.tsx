@@ -10,6 +10,7 @@ import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
+import { isClerkClientConfigured } from '../../lib/clerk-client';
 import { Building2, Briefcase, Camera } from 'lucide-react';
 import { validateAvatarFile } from '../../lib/pending-avatar';
 
@@ -28,6 +29,49 @@ function getPublicAppUrl() {
 }
 
 export function LoginPage() {
+  if (!isClerkClientConfigured) {
+    return <ClerkUnavailablePage />;
+  }
+
+  return <ClerkLoginPage />;
+}
+
+function ClerkUnavailablePage() {
+  return (
+    <div className="min-h-[90vh] flex items-center justify-center px-4 py-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-lg"
+      >
+        <GlassCard className="p-8 md:p-10 text-center relative overflow-hidden backdrop-blur-3xl border-white/10 shadow-2xl">
+          <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#2563EB]/20 rounded-full blur-[60px]" />
+          <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-[#6D5EF3]/20 rounded-full blur-[60px]" />
+
+          <div className="relative z-10">
+            <h1 className="text-3xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-secondary)' }}>
+              Acceso en configuración
+            </h1>
+            <p className="text-white/60 text-sm">
+              Este despliegue ya incluye la migración a Clerk, pero Vercel todavía no tiene las claves de Clerk
+              configuradas.
+            </p>
+
+            <div className="mt-6 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-4 text-left">
+              <p className="text-sm font-semibold text-white">Qué falta para habilitar el login</p>
+              <p className="mt-2 text-xs text-white/70">
+                Agrega `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` y `CLERK_SECRET_KEY` en Vercel para activar el acceso con Google.
+              </p>
+            </div>
+          </div>
+        </GlassCard>
+      </motion.div>
+    </div>
+  );
+}
+
+function ClerkLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');

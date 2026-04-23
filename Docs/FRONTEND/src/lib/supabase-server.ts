@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@supabase/supabase-js';
+import { isClerkServerConfigured } from './clerk-server';
 import { supabaseAnonKey, supabaseServiceRoleKey, supabaseUrl } from './supabase-config';
 
 export async function createRouteHandlerClient() {
@@ -11,11 +12,13 @@ export async function createRouteHandlerClient() {
 
   let accessToken: string | null = null;
 
-  try {
-    const authState = await auth();
-    accessToken = await authState.getToken();
-  } catch {
-    accessToken = null;
+  if (isClerkServerConfigured) {
+    try {
+      const authState = await auth();
+      accessToken = await authState.getToken();
+    } catch {
+      accessToken = null;
+    }
   }
 
   return createServerSupabaseClient(accessToken);

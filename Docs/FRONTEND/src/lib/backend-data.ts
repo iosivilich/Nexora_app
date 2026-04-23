@@ -18,6 +18,7 @@ import type {
   AppointmentSummary,
 } from './backend-types';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { isClerkServerConfigured } from './clerk-server';
 import { createAdminClient, createRouteHandlerClient } from './supabase-server';
 import { hasSupabaseServiceRole, supabaseAdmin, supabasePublic } from './supabase';
 
@@ -1030,6 +1031,13 @@ async function resolveBusinessRecords(
 }
 
 export async function getAuthenticatedContext(): Promise<AuthenticatedBackendContext> {
+  if (!isClerkServerConfigured) {
+    throw createRuntimeError(
+      'La autenticacion con Clerk no esta configurada en este despliegue. Agrega las variables de Clerk en Vercel para habilitar el acceso.',
+      503,
+    );
+  }
+
   const authState = await auth();
   const clerkUserId = authState.userId;
 

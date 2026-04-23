@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from '@clerk/nextjs';
 import { Providers } from "./providers";
+import { clerkPublishableKey } from '../src/lib/clerk-server';
 import "../src/styles/index.css";
 
 export const metadata: Metadata = {
@@ -14,6 +15,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const content = <Providers>{children}</Providers>;
+
   return (
     <html lang="es">
       <head>
@@ -27,9 +30,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#2563EB" />
       </head>
       <body>
-        <ClerkProvider>
-          <Providers>{children}</Providers>
-        </ClerkProvider>
+        {clerkPublishableKey ? <ClerkProvider>{content}</ClerkProvider> : content}
       </body>
     </html>
   );
