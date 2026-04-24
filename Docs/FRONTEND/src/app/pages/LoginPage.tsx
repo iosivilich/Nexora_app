@@ -1,18 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useClerk } from '@clerk/nextjs';
 import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
 import { GlassCard } from '../components/GlassCard';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { isClerkClientConfigured } from '../../lib/clerk-client';
-import { Building2, Briefcase, Camera } from 'lucide-react';
-import { validateAvatarFile } from '../../lib/pending-avatar';
 
 function getPublicAppUrl() {
   if (typeof window !== 'undefined' && window.location.origin) {
@@ -72,15 +68,7 @@ function ClerkUnavailablePage() {
 }
 
 function ClerkLoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [city, setCity] = useState('');
-  const [userType, setUserType] = useState<'EMPRESA' | 'CONSULTOR' | null>(null);
-  const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState('');
   const router = useRouter();
   const { user } = useAuth();
   const clerk = useClerk();
@@ -90,50 +78,6 @@ function ClerkLoginPage() {
       router.replace('/');
     }
   }, [user, router]);
-
-  useEffect(() => {
-    return () => {
-      if (avatarPreviewUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(avatarPreviewUrl);
-      }
-    };
-  }, [avatarPreviewUrl]);
-
-  const resetAvatarSelection = () => {
-    if (avatarPreviewUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(avatarPreviewUrl);
-    }
-
-    setAvatarFile(null);
-    setAvatarPreviewUrl('');
-  };
-
-  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    const validationError = validateAvatarFile(file);
-    if (validationError) {
-      toast.error(validationError);
-      event.target.value = '';
-      return;
-    }
-
-    if (avatarPreviewUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(avatarPreviewUrl);
-    }
-
-    setAvatarFile(file);
-    setAvatarPreviewUrl(URL.createObjectURL(file));
-  };
-
-  const handleEmailAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    toast.info('En esta migración el acceso activo es con Google. Usa el botón de Google para entrar o crear tu cuenta.');
-  };
 
   const handleGoogleLogin = async () => {
     const redirectTo = new URL('/sso-callback', getPublicAppUrl()).toString();
@@ -152,11 +96,6 @@ function ClerkLoginPage() {
     }
   };
 
-  const previewSeed = fullName.trim() || email.trim() || 'Nexora';
-  const previewImage =
-    avatarPreviewUrl ||
-    `https://ui-avatars.com/api/?background=0A1F44&color=FFFFFF&bold=true&name=${encodeURIComponent(previewSeed)}`;
-
   return (
     <div className="min-h-[90vh] flex items-center justify-center px-4 py-8">
       <motion.div
@@ -172,11 +111,9 @@ function ClerkLoginPage() {
 
           <div className="relative z-10">
             <h1 className="text-3xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-secondary)' }}>
-              {isSignUp ? 'Únete a Nexora' : 'Bienvenido'}
+              Bienvenido
             </h1>
-            <p className="text-white/60 mb-8 text-sm">
-              {isSignUp ? 'Completa tu perfil estratégico' : 'Bienvenido de nuevo a tu espacio profesional'}
-            </p>
+            <p className="text-white/60 mb-8 text-sm">Bienvenido de nuevo a tu espacio profesional</p>
 
             <div className="mb-6 rounded-2xl border border-[#2563EB]/20 bg-[#2563EB]/10 px-4 py-3 text-left">
               <p className="text-sm font-semibold text-white">Google es el acceso principal en esta versión.</p>
@@ -184,146 +121,11 @@ function ClerkLoginPage() {
                 Al entrar con Google te pediremos escoger si quieres continuar como empresa o consultor.
               </p>
             </div>
-            
-            <form onSubmit={handleEmailAuth} className="space-y-4 text-left mb-8">
-              {isSignUp && (
-                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
-                  <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-5 py-6">
-                    <img
-                      src={previewImage}
-                      alt="Vista previa del avatar"
-                      className="h-24 w-24 rounded-full object-cover border-4 border-white/10 shadow-lg shadow-black/20"
-                    />
-                    <div className="text-center">
-                      <p className="text-sm font-semibold text-white">Foto de perfil</p>
-                      <p className="text-xs text-white/50">Opcional. JPG, PNG o WEBP hasta 5 MB.</p>
-                    </div>
-                    <label
-                      htmlFor="avatar"
-                      className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
-                    >
-                      <Camera className="h-4 w-4" />
-                      Elegir foto
-                    </label>
-                    <input
-                      id="avatar"
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      onChange={handleAvatarChange}
-                      className="sr-only"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="fullName" className="text-white/80 ml-1 font-semibold text-xs uppercase tracking-wider">Nombre Completo *</Label>
-                      <Input
-                        id="fullName"
-                        placeholder="Ej: Carlos Ruiz"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        required={isSignUp}
-                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 h-11 rounded-xl focus:border-[#2563EB]/50"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="city" className="text-white/80 ml-1 font-semibold text-xs uppercase tracking-wider">Ciudad *</Label>
-                      <Input
-                        id="city"
-                        placeholder="Ej: Madrid"
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
-                        required={isSignUp}
-                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 h-11 rounded-xl focus:border-[#2563EB]/50"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-white/80 ml-1 font-semibold text-xs uppercase tracking-wider text-left">Correo Electrónico *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="tu@ejemplo.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/30 h-11 rounded-xl focus:border-[#2563EB]/50"
-                />
-              </div>
-
-              {isSignUp && (
-                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-700">
-                  <Label className="text-white/80 ml-1 font-semibold text-xs uppercase tracking-wider block">¿Cuál es tu rol? *</Label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setUserType('EMPRESA')}
-                      className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all gap-2 group ${
-                        userType === 'EMPRESA' 
-                          ? 'bg-[#2563EB]/20 border-[#2563EB] text-white shadow-[0_0_20px_rgba(37,99,235,0.2)]' 
-                          : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:border-white/20'
-                      }`}
-                    >
-                      <Building2 className={`w-6 h-6 transition-colors ${userType === 'EMPRESA' ? 'text-[#2563EB]' : 'group-hover:text-white'}`} />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Soy Empresa</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setUserType('CONSULTOR')}
-                      className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all gap-2 group ${
-                        userType === 'CONSULTOR' 
-                          ? 'bg-[#6D5EF3]/20 border-[#6D5EF3] text-white shadow-[0_0_20px_rgba(109,94,243,0.2)]' 
-                          : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:border-white/20'
-                      }`}
-                    >
-                      <Briefcase className={`w-6 h-6 transition-colors ${userType === 'CONSULTOR' ? 'text-[#6D5EF3]' : 'group-hover:text-white'}`} />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Soy Consultor</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between ml-1 leading-none">
-                  <Label htmlFor="password" className="text-white/80 font-semibold text-xs uppercase tracking-wider">Contraseña *</Label>
-                  {!isSignUp && (
-                    <button type="button" className="text-[10px] text-[#2563EB] hover:underline font-bold uppercase tracking-widest">
-                      ¿Olvidaste tu contraseña?
-                    </button>
-                  )}
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/30 h-11 rounded-xl focus:border-[#2563EB]/50"
-                />
-              </div>
-
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-6 text-lg bg-gradient-to-r from-[#2563EB] to-[#6D5EF3] text-white hover:opacity-90 rounded-xl transition-all shadow-xl font-bold mt-4 border-0 opacity-80"
-              >
-                {isSignUp ? 'Registro con correo pronto' : 'Ingreso con correo pronto'}
-              </Button>
-            </form>
-
-            <div className="relative flex items-center gap-4 mb-8">
-              <div className="h-px bg-white/10 flex-1" />
-              <span className="text-[10px] text-white/40 uppercase tracking-widest font-bold">o continúa con Google</span>
-              <div className="h-px bg-white/10 flex-1" />
-            </div>
 
             <Button
               type="button"
               onClick={handleGoogleLogin}
+              disabled={isLoading}
               className="w-full py-6 text-base bg-white/5 text-white border border-white/10 hover:bg-white/10 flex items-center justify-center gap-3 rounded-xl transition-all"
             >
               <img 
@@ -331,24 +133,8 @@ function ClerkLoginPage() {
                 alt="Google" 
                 className="w-5 h-5"
               />
-              <span className="text-sm font-semibold">Google</span>
+              <span className="text-sm font-semibold">{isLoading ? 'Redirigiendo...' : 'Google'}</span>
             </Button>
-
-            <div className="mt-8 pt-6 border-t border-white/5">
-              <p className="text-sm text-white/60">
-                {isSignUp ? '¿Ya tienes una cuenta?' : '¿No tienes una cuenta?'}
-                <button
-                  onClick={() => {
-                    setIsSignUp(!isSignUp);
-                    setUserType(null);
-                    resetAvatarSelection();
-                  }}
-                  className="ml-2 text-[#2563EB] font-bold hover:underline"
-                >
-                  {isSignUp ? 'Inicia sesión' : 'Regístrate aquí'}
-                </button>
-              </p>
-            </div>
           </div>
         </GlassCard>
       </motion.div>

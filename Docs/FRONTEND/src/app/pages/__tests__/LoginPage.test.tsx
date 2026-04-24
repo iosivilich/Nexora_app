@@ -29,6 +29,10 @@ vi.mock('../../context/AuthContext', () => ({
   }),
 }));
 
+vi.mock('../../../lib/clerk-client', () => ({
+  isClerkClientConfigured: true,
+}));
+
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -73,30 +77,14 @@ describe('LoginPage', () => {
   it('renders the login form', () => {
     render(<LoginPage />);
     expect(screen.getByText('Bienvenido')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('tu@ejemplo.com')).toBeInTheDocument();
     expect(screen.getByText(/Google es el acceso principal/i)).toBeInTheDocument();
   });
 
-  it('toggles between sign-in and sign-up', () => {
+  it('does not render email or password access inputs', () => {
     render(<LoginPage />);
-    expect(screen.getByText('Bienvenido')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Regístrate aquí'));
-    expect(screen.getByText('Únete a Nexora')).toBeInTheDocument();
-  });
-
-  it('shows role selection in sign-up mode', () => {
-    render(<LoginPage />);
-    fireEvent.click(screen.getByText('Regístrate aquí'));
-    expect(screen.getByText('Soy Empresa')).toBeInTheDocument();
-    expect(screen.getByText('Soy Consultor')).toBeInTheDocument();
-  });
-
-  it('shows avatar upload during sign-up', () => {
-    render(<LoginPage />);
-    fireEvent.click(screen.getByText('Regístrate aquí'));
-    expect(screen.getByText('Foto de perfil')).toBeInTheDocument();
-    expect(screen.getByLabelText('Elegir foto')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('tu@ejemplo.com')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('••••••••')).not.toBeInTheDocument();
+    expect(screen.queryByText('Regístrate aquí')).not.toBeInTheDocument();
   });
 
   it('renders Google login button', () => {
