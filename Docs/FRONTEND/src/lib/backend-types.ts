@@ -188,3 +188,20 @@ export interface AppointmentSummary {
   status: string;
   createdAt: string;
 }
+
+export interface CompanyCatalogItem {
+  nit:              string;
+  razonSocial:      string;
+  ciudad:           string;
+  departamento:     string;
+  ciiu:             string;
+  sector:           string;
+  activos:          number;
+  tipoOrganizacion: string;
+}
+
+export interface CompanyCatalogResponse {
+  items:  CompanyCatalogItem[];
+  total:  number;
+  source: 'datos.gov.co';
+}
