@@ -114,6 +114,13 @@ export interface ProfileDetails {
     descripcion: string | null;
     estado: string | null;
     fechaRegistro: string | null;
+    nit: string | null;
+    ciudad: string | null;
+    departamento: string | null;
+    repLegal: string | null;
+    website: string | null;
+    tipoOrganizacion: string | null;
+    esPyme: boolean;
   } | null;
   consultantRecord: {
     idConsultor: number;
@@ -126,6 +133,7 @@ export interface ProfileDetails {
     tarifaReferencial: number | null;
     estado: string | null;
     fechaRegistro: string | null;
+    ciudad: string | null;
   } | null;
   settings: UserSettings;
 }
@@ -198,10 +206,46 @@ export interface CompanyCatalogItem {
   sector:           string;
   activos:          number;
   tipoOrganizacion: string;
+  email:            string;
+  repLegal:         string;
+  esPyme:           boolean;
+  activa:           boolean;
+  website:          string;
 }
 
 export interface CompanyCatalogResponse {
   items:  CompanyCatalogItem[];
   total:  number;
   source: 'datos.gov.co';
+}
+
+export type ConsultantSource = 'github' | 'secop';
+
+export interface ConsultantCatalogItem {
+  idExterno:        string;
+  fuente:           ConsultantSource;
+  nombre:           string;
+  apellido:         string;
+  email:            string | null;
+  telefono:         string;
+  rol:              string;
+  bio:              string;
+  especialidad:     string;
+  expertise:        string[];
+  ciudad:           string;
+  departamento:     string;
+  avatarUrl:        string;
+  experienciaAnos:  number;
+  tarifaReferencial: number;
+  rating:           number;
+  edad:             number;
+  estado:           'disponible' | 'ocupado';
+  verified:         boolean;
+  fechaRegistro:    string | null;
+}
+
+export interface ConsultantCatalogResponse {
+  items:   ConsultantCatalogItem[];
+  total:   number;
+  sources: ConsultantSource[];
 }

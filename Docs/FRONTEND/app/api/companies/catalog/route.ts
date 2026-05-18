@@ -15,16 +15,14 @@ export async function GET(req: NextRequest) {
 
   const rawLimit  = Number(searchParams.get('limit'));
   const rawOffset = Number(searchParams.get('offset'));
-  const rawActivos = Number(searchParams.get('activosMin'));
 
   try {
     const items = await fetchCatalog({
-      q:          searchParams.get('q')        ?? undefined,
-      ciudad:     searchParams.get('ciudad')   ?? undefined,
-      ciiu:       searchParams.get('ciiu')     ?? undefined,
-      activosMin: rawActivos > 0 ? rawActivos : undefined,
-      limit:      rawLimit  > 0 ? rawLimit  : 100,
-      offset:     rawOffset > 0 ? rawOffset : 0,
+      q:       searchParams.get('q')      ?? undefined,
+      ciudad:  searchParams.get('ciudad') ?? undefined,
+      tipo:    searchParams.get('tipo')   ?? undefined,
+      limit:   rawLimit  > 0 ? rawLimit  : 100,
+      offset:  rawOffset > 0 ? rawOffset : 0,
     });
 
     return NextResponse.json({

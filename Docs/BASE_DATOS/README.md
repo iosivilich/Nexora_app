@@ -13,11 +13,20 @@ Centraliza la información compartida por todos los usuarios.
 - **Campos**: `full_name`, `avatar_url`, `city`, `user_type` (Enum: EMPRESA | CONSULTOR).
 - **Finalidad**: Gestión de identidad única y tipo de acceso.
 
-#### 2. `consultants`
-Contiene la información profesional extendida para usuarios con rol `CONSULTOR`.
-- **PK**: `id` (uuid) -> Referencia a `profiles(id)`.
-- **Campos Clave**: `role`, `rating`, `projects`, `experience_years`, `age`, `bio`, `expertise` (text[]), `verified`.
-- **Finalidad**: Proveer datos enriquecidos para el sistema de filtros en la página de Explorar.
+#### 2. `consultants` — capa auth-linked
+Información profesional **del usuario logueado**. Una fila ⇔ un `auth.users` real, con RLS.
+- **PK**: `id` (uuid) -> Referencia a `profiles(id)` ON DELETE CASCADE.
+- **Campos Clave**: `role`, `rating`, `projects`, `experience_years`, `age`, `bio`, `expertise` (text[]), `verified`, `ciudad`.
+- **Finalidad**: Soportar operaciones que requieren identidad — perfil propio, favoritos, mensajería, citas.
+
+#### 2bis. `consultor` — capa catálogo público (legacy)
+Directorio masivo de talento **independiente de `auth.users`**, sin RLS.
+- **PK**: `id_consultor` (serial integer).
+- **Campos**: `nombre`, `apellido`, `email`, `telefono`, `especialidad`, `años_experiencia`, `tarifa_referencial`, `estado`, `fecha_registro`, `ciudad`, `avatar_url`, `bio`, `rol`, `expertise` (text[]), `verified`, `fuente`, `id_externo`.
+- **Volumen actual**: ~1,772 perfiles reales colombianos (1,690 desde SECOP + 82 legacy).
+- **Carga**: `node scripts/seed-consultores.mjs` desde GitHub Users API + datos.gov.co.
+- **Vinculación con `profiles`**: por email (o `profiles.consultor_id` cuando se setea).
+- **Detalles**: `FUENTE_DATOS_CONSULTORES.md` (fuentes y mapeo) + `IMPLEMENTACION_CONSULTORES_SUPABASE.md` (especificación completa de `consultants` vs `consultor` y cambios aplicados).
 
 #### 3. `favorites`
 Permite a las empresas guardar consultores de interés.
