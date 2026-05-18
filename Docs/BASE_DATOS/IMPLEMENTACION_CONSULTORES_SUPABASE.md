@@ -176,3 +176,74 @@ curl -s 'http://localhost:3030/api/consultants/catalog?source=secop&ciudad=BOGOT
 node scripts/seed-consultores.mjs --source secop --limit 100
 node scripts/check-consultor-schema.mjs   # count debe ser igual o casi
 ```
+
+---
+
+## Despliegue y merge a producción (2026-05-18)
+
+Esta sección registra cómo llegó el código a `master` (Vercel prod) para que cualquier futura iteración entienda el camino tomado y los gotchas encontrados.
+
+### Estado inicial del repo
+
+- Branch local `iosiv` tenía 10 commits que `origin/iosiv` no había recibido, incluyendo `f8f96f79` (integración de empresas) más todo el trabajo de consultores sin commitear.
+- `master` local apuntaba a `f9048576`, dos commits adelante de la base común con `iosiv`.
+- `origin/master` estaba **3 commits adicionales** más adelante, con una **migración a Clerk** (`a05cd4a7 feat: migrate auth flow to clerk`, `e6db6a58 fix: harden vercel deploy without clerk envs`, `ed5aa0e0 refactor: remove non-google login option`) que el local no había traído.
+
+Un push directo `iosiv → master` habría sobrescrito esos 5 commits ajenos y, en particular, hubiera eliminado la migración a Clerk en producción.
+
+### Riesgos detectados y mitigados antes de commit
+
+| Riesgo | Cómo se manejó |
+|---|---|
+| `tsconfig.tsbuildinfo` staged como cambio | Unstage + añadido a `Docs/FRONTEND/.gitignore` con patrón `*.tsbuildinfo` |
+| `next-env.d.ts` con cambios efímeros de `npm run dev` | Se dejó que `npm run build` lo regenerara a la forma estable; quedó sin diff |
+| Docs y migraciones de empresas previas sin commitear (`FUENTE_DATOS_EMPRESAS.md`, `IMPLEMENTACION_EMPRESAS_SUPABASE.md`, `20260513_*.sql`, `muestra-empresas.json`) | Incluidos en el mismo commit que cierra la integración de consultores, ya que pertenecen a la misma cadena de trabajo |
+| Secretos en archivos nuevos | Auditados: cero leakage. Solo menciones del nombre `SUPABASE_SERVICE_ROLE_KEY` en docs y scripts, nunca valores |
+
+### Resolución de conflictos del merge
+
+Al traer `origin/master` aparecieron 2 conflictos:
+
+**`Docs/FRONTEND/.gitignore`** — trivial: ambas ramas habían añadido líneas distintas (tsbuildinfo vs `.clerk/`). Se combinaron sin perder ninguna.
+
+**`Docs/FRONTEND/src/lib/backend-data.ts`** — la función `resolveBusinessRecords` divergió en su signatura:
+- `iosiv` añadió un 3er parámetro `ciudad?: string | null` para que al crear un consultor sintético tome la ciudad del input en vez del `profile.city`.
+- `master` cambió el 3er parámetro a `db: SupabaseClient = getDatabaseClient()` para permitir inyectar el client correcto bajo Clerk.
+
+**Resolución:** se combinaron en una signatura de 4 parámetros que preserva ambas semánticas:
+
+```ts
+async function resolveBusinessRecords(
+  profile: ProfileRow,
+  email?: string | null,
+  ciudad?: string | null,
+  db: SupabaseClient = getDatabaseClient(),
+)
+```
+
+Los 2 callsites preexistentes que pasaban `db` como 3er argumento se actualizaron a `(profile, email, null, db)` para no romper su intención.
+
+### Validación post-merge
+
+| Paso | Resultado |
+|---|---|
+| `npm install` | Trajo `@clerk/nextjs` y deps relacionadas (faltaban porque iosiv venía de antes de la migración) |
+| `npx tsc --noEmit -p tsconfig.json` | Sin errores |
+| `npm run test:run` | **44/44 tests pasan** (eran 41 antes del merge; master añadió 3) |
+| `npm run build` | exit 0; ruta `/api/consultants/catalog` aparece junto a `/api/companies/catalog` |
+
+### Camino final a producción
+
+1. Commit `91fc5c4d feat: integrar GitHub + SECOP como catálogo masivo de consultores colombianos` con todos los archivos nuevos + cambios pendientes de empresas.
+2. Merge `master` local (`5147c0c8`) — trivial, sólo añadía PDF y borraba assets viejos de `public/`.
+3. Merge `origin/master` (`72b0970f`) — conflictos resueltos como se documentó arriba.
+4. Push `iosiv` → `origin/iosiv` (commit `72b0970f`).
+5. **PR abierto:** [#1 — feat: catálogo masivo de consultores colombianos (GitHub + SECOP)](https://github.com/iosivilich/Nexora_app/pull/1).
+
+**Por qué PR y no push directo a `master`:** el flujo del equipo (CLAUDE.md) usa branches por persona y `master` para producción. Un push directo a `master` dispara deploy a Vercel sin revisión. El PR mantiene la trazabilidad y permite que el resto del equipo confirme que la migración a Clerk + la ingesta de consultores conviven sin romper auth.
+
+### Para el próximo dev que continúe esto
+
+- **No mergees el PR sin verificar** que `/login` y el flujo Clerk siguen funcionando en preview. La signatura de `resolveBusinessRecords` se cambió manualmente; un caso edge en el upsert de perfil podría romperse aunque tests pasen.
+- Si se quiere desactivar Clerk temporalmente para validar la rama, comentar las nuevas dependencias en `app/layout.tsx`, `proxy.ts`, `src/app/context/AuthContext.tsx`, `src/app/pages/LoginPage.tsx`, `src/lib/supabase-server.ts`, `src/lib/backend-data.ts` (todos importan `@clerk/nextjs`).
+- Para futuras integraciones de fuente de datos (ej. otro dataset SECOP), seguir el patrón consolidado: `src/lib/<fuente>.ts` + `app/api/<recurso>/catalog/route.ts` + `scripts/seed-<recurso>.mjs` + `Docs/BASE_DATOS/FUENTE_DATOS_<RECURSO>.md` + migración SQL en `Docs/BASE_DATOS/migrations/`.
