@@ -247,3 +247,40 @@ Los 2 callsites preexistentes que pasaban `db` como 3er argumento se actualizaro
 - **No mergees el PR sin verificar** que `/login` y el flujo Clerk siguen funcionando en preview. La signatura de `resolveBusinessRecords` se cambió manualmente; un caso edge en el upsert de perfil podría romperse aunque tests pasen.
 - Si se quiere desactivar Clerk temporalmente para validar la rama, comentar las nuevas dependencias en `app/layout.tsx`, `proxy.ts`, `src/app/context/AuthContext.tsx`, `src/app/pages/LoginPage.tsx`, `src/lib/supabase-server.ts`, `src/lib/backend-data.ts` (todos importan `@clerk/nextjs`).
 - Para futuras integraciones de fuente de datos (ej. otro dataset SECOP), seguir el patrón consolidado: `src/lib/<fuente>.ts` + `app/api/<recurso>/catalog/route.ts` + `scripts/seed-<recurso>.mjs` + `Docs/BASE_DATOS/FUENTE_DATOS_<RECURSO>.md` + migración SQL en `Docs/BASE_DATOS/migrations/`.
+
+### Incidente: workflow de Vercel fallando tras el PR
+
+Al pushear el PR #1, el workflow `.github/workflows/vercel-deploy.yml` falló en dos etapas distintas. Se documenta aquí para que el siguiente intento no caiga en el mismo hoyo.
+
+**Etapa 1 — `--token=` vacío:**
+```
+Error: No existing credentials found. Please run `vercel login` or pass "--token"
+```
+Causa: el secret `VERCEL_TOKEN` no existía en GitHub. Los otros dos (`VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`) sí estaban (creados 2026-04-22). El comando del workflow `vercel pull --token=${{ secrets.VERCEL_TOKEN }}` se renderizaba como `--token=` (cadena vacía) y Vercel CLI lo trataba como ausencia de credenciales.
+
+Fix: crear el token en https://vercel.com/account/tokens con scope al team/cuenta donde vive el proyecto, y añadirlo como secret `VERCEL_TOKEN` en GitHub → Settings → Secrets and variables → Actions.
+
+**Etapa 2 — token sí pero IDs incorrectos:**
+```
+Error: Could not retrieve Project Settings. To link your Project, remove the `.vercel` directory and deploy again.
+```
+Causa: con `VERCEL_TOKEN` ya configurado, la CLI autenticó pero no encontró el proyecto. Los valores antiguos de `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` apuntaban a un proyecto/team que ya no existía con esos IDs (proyecto migrado o renombrado en Vercel durante el último mes).
+
+Fix: regenerar los IDs ejecutando localmente:
+```bash
+cd Docs/FRONTEND
+npx vercel login
+npx vercel link        # te pregunta team + proyecto, genera .vercel/project.json
+cat .vercel/project.json
+# → { "projectId": "prj_XXXX", "orgId": "team_YYYY" o user_YYYY }
+```
+
+Y actualizar los 3 secrets (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`) en GitHub con los valores autoritativos. **No commitear `.vercel/`** (ya está en `.gitignore`).
+
+**Cómo validar el fix sin tocar `master`:**
+1. Cualquier push a `iosiv` re-dispara el workflow `deploy-preview`. Si pasa, los 3 secrets están alineados.
+2. Si no quieres push extra: `gh run rerun <RUN_ID> --repo iosivilich/Nexora_app` re-ejecuta el último run fallido con los secrets actuales.
+3. Recién cuando preview pase, mergear PR #1 dispara `deploy-production` con altísima confianza.
+
+**Aprendizaje para auditorías futuras:**
+Antes de cualquier push a una rama con workflow de deploy, verificar con `gh secret list` que los 3 secrets de Vercel siguen presentes y datan de fechas coherentes con la edad del proyecto. Si el proyecto cambió de team en Vercel, los IDs viejos quedan huérfanos y el síntoma es exactamente el mismo error 2.
