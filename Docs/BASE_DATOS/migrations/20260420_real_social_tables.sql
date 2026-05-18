@@ -14,7 +14,7 @@ where p.id = u.id
 
 update public.profiles p
 set consultor_id = c.id_consultor
-from auth.users u
+from auth.users u 
 join public.consultor c on lower(c.email) = lower(u.email)
 where p.id = u.id
   and p.user_type = 'CONSULTOR'
