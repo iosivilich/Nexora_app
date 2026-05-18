@@ -35,7 +35,7 @@ describe('messages routes', () => {
 
   it('returns 403 when a user tries to read a conversation they do not own', async () => {
     getAuthenticatedContext.mockResolvedValueOnce({
-      user: { id: 'auth-user-id' },
+      profileId: 'auth-user-id',
       routeClient,
     });
     getConversationThread.mockRejectedValueOnce(Object.assign(new Error('Forbidden'), { status: 403 }));
@@ -50,7 +50,7 @@ describe('messages routes', () => {
 
   it('sends messages as the authenticated participant', async () => {
     getAuthenticatedContext.mockResolvedValueOnce({
-      user: { id: 'auth-user-id' },
+      profileId: 'auth-user-id',
       routeClient,
     });
     sendConversationMessage.mockResolvedValueOnce({

@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     await ensureAvatarBucket(adminClient);
 
     const extension = MIME_TO_EXTENSION[avatar.type] ?? 'jpg';
-    const basePath = `${context.user.id}/avatar`;
+    const basePath = `${context.profileId}/avatar`;
     const filePath = `${basePath}.${extension}`;
 
     await adminClient.storage.from(AVATAR_BUCKET).remove([
@@ -119,21 +119,11 @@ export async function POST(request: Request) {
 
     const profile = await updateProfileDetails(
       {
-        profileId: context.user.id,
+        profileId: context.profileId,
         avatarUrl: publicUrl,
       },
       context.routeClient,
     );
-
-    const { error: updateUserError } = await context.routeClient.auth.updateUser({
-      data: {
-        avatar_url: publicUrl,
-      },
-    });
-
-    if (updateUserError) {
-      console.warn('POST /api/profile/avatar could not sync auth metadata', updateUserError);
-    }
 
     return NextResponse.json(profile);
   } catch (error) {

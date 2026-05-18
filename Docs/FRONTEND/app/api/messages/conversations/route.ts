@@ -14,7 +14,7 @@ function getErrorStatus(error: unknown) {
 export async function GET() {
   try {
     const context = await getAuthenticatedContext();
-    const items = await listConversations(context.user.id, context.routeClient);
+    const items = await listConversations(context.profileId, context.routeClient);
     return NextResponse.json({
       items,
       count: items.length,
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     }
 
     const context = await getAuthenticatedContext();
-    const conversation = await getOrCreateConversation(context.user.id, body.consultantId, context.routeClient);
+    const conversation = await getOrCreateConversation(context.profileId, body.consultantId, context.routeClient);
 
     return NextResponse.json(conversation, { status: 201 });
   } catch (error) {

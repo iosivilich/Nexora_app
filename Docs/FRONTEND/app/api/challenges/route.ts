@@ -15,6 +15,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const scope = searchParams.get('scope');
     let idEmpresa = toNumber(searchParams.get('idEmpresa'));
+    let routeClient: Awaited<ReturnType<typeof getAuthenticatedContext>>['routeClient'] | undefined;
 
     if (scope === 'mine') {
       const context = await getAuthenticatedContext();
@@ -27,6 +28,7 @@ export async function GET(request: Request) {
       }
 
       idEmpresa = context.companyRecord.id_empresa;
+      routeClient = context.routeClient;
     }
 
     const items = await listChallenges({
@@ -34,7 +36,7 @@ export async function GET(request: Request) {
       status: searchParams.get('status'),
       mode: searchParams.get('mode'),
       limit: toNumber(searchParams.get('limit')),
-    });
+    }, routeClient);
 
     return NextResponse.json({
       items,
@@ -85,7 +87,7 @@ export async function POST(request: Request) {
       budget: body.budget ?? null,
       mode: body.mode ?? null,
       status: body.status ?? null,
-    });
+    }, context.routeClient);
 
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
