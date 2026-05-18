@@ -52,6 +52,7 @@ type ConsultantRow = {
   bio: string | null;
   expertise: string[] | null;
   verified: boolean | null;
+  ciudad: string | null;
   profiles: ProfileRow | ProfileRow[] | null;
 };
 
@@ -65,6 +66,13 @@ type BusinessCompanyRow = {
   descripcion: string | null;
   fecha_registro: string | null;
   estado: string | null;
+  nit: string | null;
+  ciudad: string | null;
+  departamento: string | null;
+  rep_legal: string | null;
+  website: string | null;
+  tipo_organizacion: string | null;
+  es_pyme: boolean | null;
 };
 
 type BusinessConsultorRow = {
@@ -78,6 +86,7 @@ type BusinessConsultorRow = {
   tarifa_referencial: number | null;
   estado: string | null;
   fecha_registro: string | null;
+  ciudad: string | null;
 };
 
 type ChallengeRow = {
@@ -579,7 +588,7 @@ function normalizeProfile(row: ConsultantRow['profiles']) {
 function mapConsultant(row: ConsultantRow): ConsultantDirectoryItem {
   const profile = normalizeProfile(row.profiles);
   const name = toTitleCase(profile?.full_name ?? 'Consultor demo');
-  const city = toTitleCase(profile?.city ?? 'Remoto');
+  const city = toTitleCase(row.ciudad ?? profile?.city ?? 'Remoto');
 
   return {
     id: row.id,
@@ -907,6 +916,7 @@ function toUserSettingsRow(userId: string, settings: UserSettings) {
 async function resolveBusinessRecords(
   profile: ProfileRow,
   email?: string | null,
+  ciudad?: string | null,
   db: SupabaseClient = getDatabaseClient(),
 ) {
   const normalizedEmail = normalizeQueryValue(email)?.toLowerCase() ?? null;
@@ -1001,6 +1011,7 @@ async function resolveBusinessRecords(
         tarifa_referencial: null,
         estado: 'activo',
         fecha_registro: new Date().toISOString(),
+        ciudad: ciudad ?? profile.city ?? null,
       })
       .select('*')
       .single();
@@ -1068,7 +1079,7 @@ export async function getAuthenticatedContext(): Promise<AuthenticatedBackendCon
     throw consultantError;
   }
 
-  const { companyRecord, consultantRecord } = await resolveBusinessRecords(profile, user.email ?? null, db);
+  const { companyRecord, consultantRecord } = await resolveBusinessRecords(profile, user.email ?? null, null, db);
 
   return {
     routeClient,
@@ -1790,6 +1801,13 @@ function mapCompanyRecord(companyRecord: BusinessCompanyRow | null) {
         descripcion: companyRecord.descripcion ?? null,
         estado: companyRecord.estado ?? null,
         fechaRegistro: companyRecord.fecha_registro ?? null,
+        nit: companyRecord.nit ?? null,
+        ciudad: companyRecord.ciudad ?? null,
+        departamento: companyRecord.departamento ?? null,
+        repLegal: companyRecord.rep_legal ?? null,
+        website: companyRecord.website ?? null,
+        tipoOrganizacion: companyRecord.tipo_organizacion ?? null,
+        esPyme: companyRecord.es_pyme ?? false,
       }
     : null;
 }
@@ -1807,6 +1825,7 @@ function mapConsultantRecord(consultantRecord: BusinessConsultorRow | null) {
         tarifaReferencial: consultantRecord.tarifa_referencial ?? null,
         estado: consultantRecord.estado ?? null,
         fechaRegistro: consultantRecord.fecha_registro ?? null,
+        ciudad: consultantRecord.ciudad ?? null,
       }
     : null;
 }
@@ -1907,7 +1926,7 @@ export async function getProfileDetails(
       ? await syncProfileFromAuthUser(profileResult.data as ProfileRow | null, resolvedAuthUser, db)
       : (profileResult.data as ProfileRow);
 
-  const { companyRecord, consultantRecord } = await resolveBusinessRecords(profile, resolvedAuthUser?.email ?? null, db);
+  const { companyRecord, consultantRecord } = await resolveBusinessRecords(profile, resolvedAuthUser?.email ?? null, null, db);
 
   return buildProfileDetails({
     profile,
@@ -1991,6 +2010,7 @@ export async function updateProfileDetails(
   const { companyRecord, consultantRecord } = await resolveBusinessRecords(
     { ...currentProfile, ...profileData, id: input.profileId } as ProfileRow,
     currentProfile.primary_email ?? null,
+    typeof input.city === 'string' ? input.city : null,
     db,
   );
 
@@ -2009,6 +2029,9 @@ export async function updateProfileDetails(
     }
     if (typeof input.experienceYears === 'number') {
       consultantUpdates.experience_years = input.experienceYears;
+    }
+    if (typeof input.city === 'string') {
+      consultantUpdates.ciudad = input.city;
     }
     if (typeof input.age === 'number') {
       consultantUpdates.age = input.age;
@@ -2034,6 +2057,9 @@ export async function updateProfileDetails(
       }
       if (typeof input.role === 'string') {
         consultorUpdates.especialidad = input.role;
+      }
+      if (typeof input.city === 'string') {
+        consultorUpdates.ciudad = input.city;
       }
       if (typeof input.fullName === 'string' && input.fullName.trim() !== '') {
         const parts = input.fullName.trim().split(/\s+/);
