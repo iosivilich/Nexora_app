@@ -284,3 +284,70 @@ Y actualizar los 3 secrets (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`
 
 **Aprendizaje para auditorías futuras:**
 Antes de cualquier push a una rama con workflow de deploy, verificar con `gh secret list` que los 3 secrets de Vercel siguen presentes y datan de fechas coherentes con la edad del proyecto. Si el proyecto cambió de team en Vercel, los IDs viejos quedan huérfanos y el síntoma es exactamente el mismo error 2.
+
+### Incidente: login con Clerk seguía mostrando "Acceso en configuración" tras añadir las env vars
+
+Después de que el workflow corrió exitoso y la app respondía 200, el `/login` insistía en mostrar el cartel:
+
+> *"Acceso en configuración — Este despliegue ya incluye la migración a Clerk, pero Vercel todavía no tiene las claves de Clerk configuradas."*
+
+Aunque las dos env vars (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` y `CLERK_SECRET_KEY`) sí estaban añadidas en Vercel y `vercel env ls production` las mostraba marcadas para los environments correctos (`Preview, Production`).
+
+**Causa raíz — auto-Sensitive de Vercel:**
+A partir de cierta fecha de 2026, Vercel **marca por default como "Sensitive"** toda env var nueva creada desde el dashboard web, sin opción de destildar en algunos planes. Las env vars Sensitive:
+
+1. Aparecen en `vercel env ls` con `value = Encrypted`.
+2. **NO se incluyen** en `.vercel/.env.production.local` cuando `vercel pull --environment=production` corre.
+3. Por consecuencia, **no llegan al bundle del cliente** en `vercel build`. Para `NEXT_PUBLIC_*` esto rompe completamente el caso de uso — la variable está diseñada para inyectarse al bundle público.
+
+El síntoma engañoso: en GitHub Actions el log dice `> Downloading 'production' Environment Variables for iosivs-projects/nexora-app` y `Created .vercel/.env.production.local file` — el pull **sí corre exitosamente**, pero las Sensitive simplemente se omiten silenciosamente del archivo. Sin warning ni error.
+
+**Confirmación del diagnóstico:**
+```bash
+curl -s https://nexora-app-umber.vercel.app/login | grep -oE 'src="/_next/static/chunks/[^"]+\.js"' \
+  | head -10 | xargs -I {} curl -s "https://nexora-app-umber.vercel.app{}" \
+  | grep -oE "pk_(test|live)_[A-Za-z0-9_-]{20,}"
+```
+
+Antes del fix: cero resultados (la pub key no estaba en ningún chunk JS).
+Después: aparece `pk_live_Y2xlcmsubmV4b3JhL...` en uno de los chunks.
+
+**Fix — usar `vercel env add` desde CLI:**
+La CLI de Vercel crea env vars como **plain (no-Sensitive)** por default, lo cual sí permite que `vercel pull` las descargue.
+
+```bash
+cd Docs/FRONTEND
+
+# Borrar las Sensitive existentes
+npx vercel env rm NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY production --yes
+npx vercel env rm CLERK_SECRET_KEY production --yes
+
+# Recrear vía CLI (no marca como Sensitive)
+npx vercel env add NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY production
+# pega pk_live_*** cuando lo pida
+# si advierte "NEXT_PUBLIC_ prefix will make CLERK_PUBLISHABLE_KEY visible to anyone visiting your site"
+# → elegir "Leave as is" (es exactamente lo que queremos para una publishable key)
+
+npx vercel env add CLERK_SECRET_KEY production
+# pega sk_live_*** cuando lo pida
+
+# Verificar que ahora sí llegan al pull
+npx vercel pull --environment=production --yes
+grep -c CLERK .vercel/.env.production.local   # → debe imprimir 2
+```
+
+Después: `gh run rerun <RUN_ID> --repo iosivilich/Nexora_app` y el deploy queda bien.
+
+**Confusión secundaria — dos directorios `.vercel/`:**
+Durante el diagnóstico se descubrió que existían dos `.vercel/` en el repo local:
+- `~/code/Nexora_app/.vercel/` (raíz) — con `repo.json` apuntando a un patrón de monorepo Vercel.
+- `~/code/Nexora_app/Docs/FRONTEND/.vercel/` — single-project, lo que el workflow espera.
+
+`npx vercel pull` desde `Docs/FRONTEND` actualizaba el de la **raíz** (porque Vercel CLI sube en el árbol buscando `project.json`/`repo.json`), no el de la subcarpeta. Esto causó el síntoma confuso de "las env vars no aparecen donde las busco" durante la verificación local.
+
+**Fix limpieza:** se borró `~/code/Nexora_app/.vercel/` para dejar solo el de `Docs/FRONTEND/.vercel/` (el que `vercel pull` regenera correctamente cuando se corre desde esa carpeta). El workflow en CI siempre crea su propio `.vercel/` desde cero, así que no se afecta.
+
+**Aprendizaje para auditorías futuras:**
+- En Vercel, **siempre** crear env vars vía `vercel env add` desde la CLI, no desde el dashboard, especialmente las `NEXT_PUBLIC_*`. El dashboard auto-Sensitive las rompe silenciosamente.
+- Si una `NEXT_PUBLIC_*` "existe en Vercel" pero no aparece en el bundle del cliente, el primer diagnóstico es `grep <NOMBRE_VAR> .vercel/.env.production.local` tras un `vercel pull` — si está vacío, es Sensitive.
+- Mantener un solo `.vercel/` por proyecto. Si existen `.vercel/` en raíz y en subcarpeta, borrar el que no corresponda al working-directory del workflow.
