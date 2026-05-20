@@ -351,3 +351,87 @@ Durante el diagnóstico se descubrió que existían dos `.vercel/` en el repo lo
 - En Vercel, **siempre** crear env vars vía `vercel env add` desde la CLI, no desde el dashboard, especialmente las `NEXT_PUBLIC_*`. El dashboard auto-Sensitive las rompe silenciosamente.
 - Si una `NEXT_PUBLIC_*` "existe en Vercel" pero no aparece en el bundle del cliente, el primer diagnóstico es `grep <NOMBRE_VAR> .vercel/.env.production.local` tras un `vercel pull` — si está vacío, es Sensitive.
 - Mantener un solo `.vercel/` por proyecto. Si existen `.vercel/` en raíz y en subcarpeta, borrar el que no corresponda al working-directory del workflow.
+
+---
+
+## Incidente final: Clerk Production no funcionaba en dominio `*.vercel.app` (2026-05-19)
+
+Tras resolver el auto-Sensitive y conseguir que `pk_live_*` llegara al bundle del cliente, aparecieron **dos errores nuevos** que parecían distintos pero compartían causa raíz:
+
+1. En `/login` al hacer click en "Google": `Error con Google: Cannot read properties of undefined (reading 'signIn')`.
+2. En `/` (home): la página se quedaba cargando indefinidamente con spinner.
+
+### Diagnóstico
+
+La causa fue una limitación arquitectónica de Clerk Production combinada con Vercel:
+
+1. Al promover la instancia Clerk a **Production**, Clerk asigna su frontend API a un subdominio `clerk.<tu-dominio>`. La pub key `pk_live_*` está base64-encoded con ese dominio adentro:
+   ```
+   pk_live_Y2xlcmsubmV4b3JhLWFwcC11bWJlci52ZXJjZWwuYXBwJA
+       ↓ base64
+   clerk.nexora-app-umber.vercel.app$
+   ```
+2. Para que el SDK funcione, ese dominio debe responder con SSL válido. Clerk te pide añadir un CNAME `clerk.<tu-dominio> → frontend-api.clerk.services` en tu registrador DNS.
+3. **Pero `*.vercel.app` es un dominio gestionado por Vercel, no por el usuario.** No es posible añadir registros DNS personalizados ahí. Por eso `https://clerk.nexora-app-umber.vercel.app/v1/environment` devolvía `SSL_ERROR_SYSCALL` (subdominio inexistente).
+
+Consecuencia en el cliente:
+- El SDK `@clerk/nextjs` intenta inicializar `clerk.client` con fetch al frontend API → falla → `clerk.client` queda `undefined`.
+- `LoginPage.tsx` llama a `clerk.client.signIn.authenticateWithRedirect(...)` → error de propiedad undefined.
+- `AuthContext` espera `isLoaded === true` → nunca llega → loop de loading infinito en la home.
+
+### Fix: volver a la Development instance de Clerk
+
+Para proyectos sin dominio propio (caso universitario), Clerk Development usa `*.accounts.dev` — un dominio propiedad de Clerk con SSL válido y sin requerir DNS personalizado.
+
+**Procedimiento ejecutado:**
+
+1. En Clerk dashboard, toggle arriba a la derecha → **Development**.
+2. Copiar las nuevas `pk_test_*` y `sk_test_*` desde la sección API Keys de la dev instance.
+3. Reemplazar las env vars de Vercel:
+   ```bash
+   cd Docs/FRONTEND
+   npx vercel env rm NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY production --yes
+   npx vercel env rm CLERK_SECRET_KEY production --yes
+   npx vercel env add NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY production  # interactivo: "Leave as is" + pegar valor
+   npx vercel env add CLERK_SECRET_KEY production                    # interactivo: pegar valor
+   ```
+4. `gh run rerun <ID>` del workflow para reconstruir con las keys nuevas.
+
+### Bug colateral: `vercel env add` con stdin
+
+Durante la migración se intentó automatizar con pipe:
+```bash
+echo "pk_test_..." | npx vercel env add NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY production
+```
+
+La CLI imprimió `✅ Added Environment Variable`, pero al revisar el archivo con `vercel pull`, el valor guardado fue **`""` (dos comillas literales)**, no el valor real. El `echo "..." | ` se interpretó como string vacío.
+
+**Conclusión:** `vercel env add` **debe ejecutarse de forma interactiva** — escribir el comando, esperar el prompt `? What's the value of <VAR>?`, y pegar el valor manualmente con click derecho / Ctrl+Shift+V. No usar pipe ni heredoc.
+
+### Validación final
+
+| Verificación | Comando | Resultado |
+|---|---|---|
+| Pub key en bundle JS del cliente | curl `/login` + grep `pk_test_` | ✓ Encontrada (54 chars) |
+| Decodificación del dominio Clerk | `base64 -d` sobre la parte después de `pk_test_` | `loyal-perch-49.clerk.accounts.dev` |
+| Dominio Clerk responde con SSL válido | `curl https://loyal-perch-49.clerk.accounts.dev/v1/environment` | 200 OK, 570ms |
+| Cartel "Acceso en configuración" desapareció | curl `/login` + grep | Reemplazado por "Bienvenido de nuevo" / "Google es el acceso" |
+| Home `/` responde rápido | `curl /` | 200, 350ms, 14KB |
+
+### Limitaciones aceptadas en Development instance
+
+- Banner amarillo "Development mode" visible en cada sesión (esperado).
+- Consent screen de Google dice "Clerk" en vez de "Nexora" (uso de shared credentials).
+- Hasta 100 usuarios por instancia.
+
+Estas limitaciones son aceptables para entrega universitaria. Para producción real se requiere:
+1. Comprar dominio propio (ej. `nexora.com.co`).
+2. Configurarlo en Vercel como custom domain.
+3. En Clerk → Domains, añadir el dominio nuevo.
+4. Configurar CNAME `clerk.<dominio> → frontend-api.clerk.services` en el registrador DNS.
+5. Crear OAuth credentials propias en Google Cloud Console y pegarlas en Clerk → Social Connections → Google.
+6. Promover Clerk a Production y migrar Vercel a `pk_live_*` / `sk_live_*`.
+
+### Recordatorio de seguridad
+
+Durante el debug se pegó accidentalmente la `CLERK_SECRET_KEY` (`sk_test_*`) en el chat con el asistente IA. Como es development instance limitada a 100 users de prueba, el blast radius es contenido. **Rotar esa key cuando el proyecto pase a tener usuarios reales o se promueva a Production instance.** Procedimiento: Clerk dashboard → Configure → API Keys → opción "Regenerate" en la fila de Secret Key (puede estar bajo el menú `⋮` o requerir click en "Reveal & manage"). Si no aparece la opción, eliminar y recrear la app entera funciona.
