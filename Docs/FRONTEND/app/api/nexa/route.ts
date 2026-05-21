@@ -143,7 +143,7 @@ async function fetchConsultants(params: {
 async function fetchCompanies(params: { keywords: string; ciudad?: string }) {
   const { data, error } = await getDb()
     .from('empresa')
-    .select('id_empresa, nombre_empresa, sector, tamaño_empresa, descripcion, estado')
+    .select('*')
     .limit(20);
 
   if (error) {
@@ -162,14 +162,15 @@ async function fetchCompanies(params: { keywords: string; ciudad?: string }) {
     }));
   }
 
-  let rows = (data ?? []) as Array<{
+  type EmpresaRow = {
     id_empresa: number;
     nombre_empresa: string | null;
     sector: string | null;
-    'tamaño_empresa': string | null;
     descripcion: string | null;
     estado: string | null;
-  }>;
+    [key: string]: unknown;
+  };
+  let rows = (data ?? []) as unknown as EmpresaRow[];
 
   if (params.keywords) {
     const terms = params.keywords.toLowerCase().split(/\s+/).filter(Boolean);
@@ -186,7 +187,7 @@ async function fetchCompanies(params: { keywords: string; ciudad?: string }) {
   return rows.slice(0, 5).map((e) => ({
     nombre: e.nombre_empresa ?? 'Sin nombre',
     sector: e.sector ?? 'No especificado',
-    tamaño: e['tamaño_empresa'] ?? null,
+    tamaño: (e['tamaño_empresa'] as string | null) ?? null,
     descripcion: e.descripcion ? e.descripcion.slice(0, 120) + '…' : null,
   }));
 }
