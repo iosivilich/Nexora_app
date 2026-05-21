@@ -24,6 +24,18 @@ export function BottomNav() {
       }}
     >
       <div className="flex items-center justify-around px-2 py-3">
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('nexa:open'))}
+          className="flex flex-col items-center gap-1 px-3 py-1 rounded-xl"
+        >
+          <span
+            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-base"
+            style={{ background: 'linear-gradient(135deg,#6D5EF3,#2563EB)' }}
+          >
+            ✦
+          </span>
+          <span className="text-xs text-white/60">Nexa AI</span>
+        </button>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.path;

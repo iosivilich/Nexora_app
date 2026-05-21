@@ -55,8 +55,8 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 p-4 overflow-y-auto">
-        <nav className="space-y-1">
+      <div className="flex-1 p-4 overflow-y-auto flex flex-col">
+        <nav className="space-y-1 flex-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.path;
@@ -93,6 +93,22 @@ export function Sidebar() {
             );
           })}
         </nav>
+
+        {/* Nexa AI button */}
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('nexa:open'))}
+          className="mt-4 w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group"
+          style={{
+            background: 'linear-gradient(135deg, rgba(109,94,243,0.2), rgba(37,99,235,0.2))',
+            border: '1px solid rgba(109,94,243,0.3)',
+          }}
+        >
+          <span className="text-lg">✦</span>
+          <div className="text-left">
+            <p className="text-white text-sm font-semibold" style={{ fontFamily: 'Sora, sans-serif' }}>Nexa AI</p>
+            <p className="text-white/40 text-xs">Recomendaciones con IA</p>
+          </div>
+        </button>
       </div>
     </aside>
   );

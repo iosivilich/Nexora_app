@@ -162,6 +162,12 @@ export function NexaAIChat() {
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    const handler = () => setIsOpen(true);
+    window.addEventListener('nexa:open', handler);
+    return () => window.removeEventListener('nexa:open', handler);
+  }, []);
+
   const send = useCallback(async () => {
     const text = input.trim();
     if (!text || isLoading) return;
