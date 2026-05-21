@@ -8,6 +8,7 @@ import { ParticleSystem } from '../../src/app/components/ParticleSystem';
 import { Header } from '../../src/app/components/Header';
 import { Sidebar } from '../../src/app/components/Sidebar';
 import { BottomNav } from '../../src/app/components/BottomNav';
+import { NexaAIChat } from '../../src/app/components/NexaAIChat';
 
 export default function DashboardLayout({
   children,
@@ -45,6 +46,7 @@ export default function DashboardLayout({
         {children}
       </main>
       <BottomNav />
+      <NexaAIChat />
     </div>
   );
 }
