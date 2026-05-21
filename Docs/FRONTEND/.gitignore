@@ -2,5 +2,9 @@
 .vercel
 .env*.local
 
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
 # clerk configuration (can include secrets)
 /.clerk/

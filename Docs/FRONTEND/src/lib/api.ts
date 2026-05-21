@@ -1,6 +1,7 @@
 import type {
   ChallengeSummary,
   CompanyDirectoryItem,
+  CompanyCatalogResponse,
   ConsultantDirectoryItem,
   DashboardSnapshot,
   ListResponse,
@@ -324,4 +325,25 @@ export async function fetchSeedStatus() {
 
 export async function triggerSeedDemo() {
   return getJson<SeedStatus>('/api/demo/seed', { method: 'POST' });
+}
+
+export async function fetchCompaniesCatalog(params?: {
+  q?:          string;
+  ciudad?:     string;
+  ciiu?:       string;
+  activosMin?: number;
+  limit?:      number;
+  offset?:     number;
+}) {
+  const searchParams = new URLSearchParams();
+
+  if (params?.q)          searchParams.set('q',          params.q);
+  if (params?.ciudad)     searchParams.set('ciudad',     params.ciudad);
+  if (params?.ciiu)       searchParams.set('ciiu',       params.ciiu);
+  if (typeof params?.activosMin === 'number') searchParams.set('activosMin', String(params.activosMin));
+  if (typeof params?.limit  === 'number')     searchParams.set('limit',      String(params.limit));
+  if (typeof params?.offset === 'number')     searchParams.set('offset',     String(params.offset));
+
+  const query = searchParams.toString();
+  return getJson<CompanyCatalogResponse>(`/api/companies/catalog${query ? `?${query}` : ''}`);
 }

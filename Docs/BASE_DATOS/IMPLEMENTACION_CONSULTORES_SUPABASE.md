@@ -1,0 +1,437 @@
+# Implementación en Supabase: Catálogo de Consultores
+
+> **Para futuros prompts / modelos:** este archivo documenta los cambios reales aplicados (2026-05-16) para sembrar consultores colombianos desde GitHub + SECOP, la especificación de cómo `consultants` y `consultor` se complementan, y los pendientes. Hermano de `IMPLEMENTACION_EMPRESAS_SUPABASE.md`.
+
+---
+
+## Especificación: `consultants` vs `consultor`
+
+Nexora tiene **dos tablas** de consultores que coexisten por diseño, no por accidente. Entender la división es crítico antes de tocar cualquiera.
+
+### `public.consultants` — capa **auth-linked** (UUID, RLS)
+
+| Aspecto | Valor |
+|---|---|
+| PK | `id uuid` → FK a `profiles(id)` ON DELETE CASCADE |
+| Existencia | Una fila ⇔ un usuario real en `auth.users` |
+| RLS | Habilitada: cualquier authenticated puede SELECT; sólo el dueño puede UPDATE |
+| Quién la llena | Trigger `on_auth_user_created` crea `profiles`; el flujo de signup como CONSULTOR upserta `consultants` con los datos del propio usuario |
+| Quién la lee | Operaciones que requieren identidad: perfil propio, favoritos, mensajería, conexiones, citas |
+| Campos | `id`, `role`, `rating`, `projects`, `experience_years`, `age`, `bio`, `expertise[]`, `verified`, `ciudad`, `updated_at` |
+| Volumen actual | ~decenas (sólo usuarios registrados) |
+
+**Para qué sirve:** todas las relaciones N:M auth-linked apuntan aquí (`favorites.consultant_profile_id`, `connections.consultant_profile_id`, `conversations.consultant_user_id`, `appointments.consultant_profile_id`). Sin `consultants`, no hay manera de favoritear o mensajear a un consultor desde la app.
+
+### `public.consultor` — capa **catálogo/negocio** (integer, sin RLS)
+
+| Aspecto | Valor |
+|---|---|
+| PK | `id_consultor serial` (integer auto-incremental) |
+| Existencia | Independiente de `auth.users` — son perfiles públicos del directorio |
+| RLS | No habilitada (lectura abierta a service_role y al backend; los usuarios no escriben directo) |
+| Quién la llena | Carga masiva CLI (`scripts/seed-consultores.mjs`) desde GitHub + SECOP |
+| Quién la lee | Directorio público de talento, página `/explorar`, búsquedas, filtros por ciudad/sector |
+| Campos | `id_consultor`, `nombre`, `apellido`, `email`, `telefono`, `especialidad`, `años_experiencia`, `tarifa_referencial`, `estado`, `fecha_registro`, `ciudad`, **+ nuevos:** `avatar_url`, `bio`, `rol`, `expertise[]`, `verified`, `fuente`, `id_externo` |
+| Volumen actual | **1,772 filas** (82 legacy + 1,690 SECOP cargados 2026-05-16) |
+
+**Para qué sirve:** mostrar al visitante (autenticado o no) un catálogo grande y diverso de talento sin requerir que cada consultor sea un usuario registrado. Permite que el producto luzca poblado desde día 1.
+
+### Cómo se vinculan
+
+```
+auth.users ─── 1:1 ──► profiles ─── 1:1 ──► consultants     (vía profiles.id = consultants.id)
+                          │
+                          └── soft FK via email ──► consultor (vía profiles.email = consultor.email)
+                                                     OR vía profiles.consultor_id (cuando se setea)
+```
+
+El vínculo entre `profiles` y `consultor` es **por email** (no por FK rígida), implementado en [resolveBusinessRecords()](../FRONTEND/src/lib/backend-data.ts) en [backend-data.ts:862-868](../FRONTEND/src/lib/backend-data.ts#L862-L868). Cuando un usuario hace login:
+
+1. Si tiene `profiles.consultor_id` poblado → lookup directo por integer PK.
+2. Si no → lookup por `ilike('email', user.email)`, y si encuentra match, se considera "consultor verificado por catálogo".
+
+### Cuándo modificar cada una
+
+| Si necesitas… | Tabla |
+|---|---|
+| Agregar avatar/bio masivos desde una API | `consultor` |
+| Que un usuario edite SU rating, bio o expertise | `consultants` |
+| Mostrar consultor en página de explorar | `consultor` (vía `backend-data.ts`) |
+| Crear conversación, favorito, cita | `consultants` (FK target) |
+| Aplicar a un desafío como consultor | `consultor` (`aplicacion.id_consultor`) |
+| Sumar nuevas categorías profesionales | `consultor.especialidad` + inferencia en `consultores-enrich.ts` |
+
+### Por qué no se siembran las dos
+
+Sembrar `consultants` con 1,700 filas reales requeriría crear 1,700 usuarios en `auth.users` (la FK lo exige por CASCADE). Eso:
+
+- Genera 1,700 buzones que pueden recibir resets de contraseña.
+- Aparece en el panel de Supabase Auth con cuentas no operadas.
+- Si alguno se loguea por accidente o por fuga del service role, tiene acceso a la app.
+
+El catálogo público ya se ve poblado leyendo de `consultor`, así que el costo de seguridad no se compensa. La integración mejor (deferred) es: al hacer signup como CONSULTOR, pre-rellenar `consultants` con los campos del `consultor` matcheado por email (~30 LOC, no hecho aún).
+
+---
+
+## Cambios aplicados (2026-05-16)
+
+### 1. Schema — `Docs/BASE_DATOS/migrations/20260516_consultor_datos_extras.sql`
+`ALTER TABLE public.consultor ADD COLUMN IF NOT EXISTS` los 7 campos nuevos:
+- `avatar_url text`
+- `bio text`
+- `rol text`
+- `expertise text[] not null default '{}'`
+- `verified boolean not null default false`
+- `fuente text` (`'github' | 'secop' | null`)
+- `id_externo text` (login GitHub o NIT)
+
+Más índice único NO parcial `consultor_fuente_externo_unique_idx` sobre `(fuente, id_externo)`. **El índice debe ser no-parcial** porque Postgres rechaza índices parciales como target de `ON CONFLICT` salvo que se reproduzca el predicado (y supabase-js no expone esa sintaxis). La primera versión usaba `WHERE fuente IS NOT NULL AND id_externo IS NOT NULL` y fue corregida.
+
+### 2. Seed bulk — `Docs/BASE_DATOS/migrations/20260516_consultor_seed_bulk.sql`
+200 INSERTs con `ON CONFLICT (fuente, id_externo) DO UPDATE`, generado desde `Docs/FRONTEND/src/lib/muestra-consultores.json`. Regenerable con:
+```bash
+cd Docs/FRONTEND && node scripts/build-consultor-seed-sql.mjs
+```
+
+### 3. Carga masiva ejecutada (resultado verificado)
+```bash
+cd Docs/FRONTEND && node scripts/seed-consultores.mjs --source secop --limit 2000
+```
+- **1,690 filas insertadas** en `public.consultor` (sumando a 82 legacy → 1,772 totales).
+- ~310 omitidas por colisión en `consultor_email_key` (emails que aparecen múltiples veces como persona natural en SECOP).
+- 61 ciudades únicas representadas.
+
+El script usa estrategia **delete + insert por lote** en vez de `upsert` puro, lo cual es robusto incluso si el índice único no estuviera todavía aplicado en Supabase. Mantiene idempotencia por `(fuente, id_externo)`.
+
+### 4. Endpoint en vivo — `Docs/FRONTEND/app/api/consultants/catalog/route.ts`
+Espejo del de empresas. `Promise.allSettled` para que un fallo en GitHub (rate limit sin PAT) no rompa SECOP.
+
+**Smoke tests pasados:**
+- `GET /api/consultants/catalog?meta=1` → 200, devuelve sources + ciudades + categorías.
+- `GET /api/consultants/catalog?source=secop&ciudad=BOGOTa&limit=3` → 200, 3 perfiles ricos.
+- `GET /api/consultants/catalog?source=all&limit=5` → 200, mix GitHub + SECOP.
+
+### 5. Archivos nuevos (Docs/FRONTEND)
+
+| Path | Rol |
+|---|---|
+| `src/lib/consultores-enrich.ts` | Hash determinístico + `inferRol` + `inferExpertise` + DiceBear avatar |
+| `src/lib/datos-gov-consultores.ts` | `fetchSecopConsultores()` — server-side, cache 1h |
+| `src/lib/github-consultores.ts` | `fetchGithubConsultores()` — server-side, cache 1h |
+| `src/lib/muestra-consultores.json` | 200 perfiles muestra (SECOP-only) |
+| `app/api/consultants/catalog/route.ts` | Endpoint `/api/consultants/catalog` |
+| `scripts/seed-consultores.mjs` | CLI bulk upsert. Flags: `--source`, `--limit`, `--dry-run`, `--out` |
+| `scripts/build-consultor-seed-sql.mjs` | Genera migración SQL desde el JSON muestra |
+| `scripts/check-consultor-schema.mjs` | Smoke check del schema y conteo |
+
+### 6. Tipos extendidos — `Docs/FRONTEND/src/lib/backend-types.ts`
+Nuevos: `ConsultantSource`, `ConsultantCatalogItem`, `ConsultantCatalogResponse`.
+
+### 7. Bug fix histórico
+Regex `inferExpertise`: la alternancia `/\bmobile|android|ios|flutter|react native\b/i` no agrupaba — `ios` matcheaba dentro de "servicios", contaminando el 100% de perfiles RRHH con tag `mobile`. Corregido a `/\b(mobile|android|flutter)\b|\bios\b|react native/i` en ambos archivos (TS y mjs).
+
+---
+
+## Próximos pasos (no hechos aún)
+
+| Prioridad | Tarea | Esfuerzo |
+|---|---|---|
+| Alta | **Pre-rellenar `consultants` al signup**: cuando un usuario se registra como CONSULTOR, hacer upsert a `consultants` copiando `rol`, `bio`, `expertise`, `avatar_url` desde el `consultor` matcheado por email. Vive en flujo de signup, ~30 LOC. | ~30 min |
+| Media | **Activar híbrido GitHub**: crear PAT gratis, añadir `GITHUB_PAT` a `.env.local` y Vercel, correr `seed-consultores.mjs --limit 5000` para llegar a ~5K perfiles con avatares reales. | ~10 min |
+| Media | **Vincular consultor → desafíos**: las 1,690 filas no tienen aplicaciones a desafíos (la tabla `aplicacion` está vacía para ellos). Si se quiere demo de matching, sembrar aplicaciones sintéticas. | ~1 h |
+| Baja | **Cross-data SECOP-contratos**: enriquecer `años_experiencia` y `projects` con el dataset `jbjy-vk9h` (SECOP II) cruzando por NIT. | ~3 h |
+| Baja | **Top languages GitHub** en `expertise[]`: extra fetch a `/users/{login}/repos`. Triplica el costo API. | ~1 h |
+
+---
+
+## Estado de migraciones (al 2026-05-16)
+
+| Archivo | Aplicada en prod | Notas |
+|---|---|---|
+| `20260420_real_social_tables.sql` | Sí (preexistente) | Tablas de favoritos, conexiones, citas, mensajes |
+| `20260513_consultor_ciudad.sql` | Sí (preexistente) | Añade `ciudad` a ambas tablas |
+| `20260513_empresa_datos_gov.sql` | Sí | Schema empresas para SECOP |
+| `20260513_empresa_seed_bulk.sql` | Sí | 19,376 empresas |
+| **`20260516_consultor_datos_extras.sql`** | **Sí, índice parcial fue corregido** | Aplicar la versión actualizada cuando se haga migración limpia |
+| **`20260516_consultor_seed_bulk.sql`** | No (200 filas) | El bulk real lo hizo `seed-consultores.mjs --limit 2000` directamente; este SQL es backup para entornos sin Node |
+
+---
+
+## Verificación rápida
+
+```bash
+cd Docs/FRONTEND
+
+# 1. Conteo y schema OK
+node scripts/check-consultor-schema.mjs
+# → SCHEMA-OK. current count: 1772
+
+# 2. Endpoint meta
+curl -s http://localhost:3030/api/consultants/catalog?meta=1 | jq
+
+# 3. Endpoint con filtros
+curl -s 'http://localhost:3030/api/consultants/catalog?source=secop&ciudad=BOGOTa&limit=3' | jq '.items[0]'
+
+# 4. Verificar idempotencia (re-correr no duplica)
+node scripts/seed-consultores.mjs --source secop --limit 100
+node scripts/check-consultor-schema.mjs   # count debe ser igual o casi
+```
+
+---
+
+## Despliegue y merge a producción (2026-05-18)
+
+Esta sección registra cómo llegó el código a `master` (Vercel prod) para que cualquier futura iteración entienda el camino tomado y los gotchas encontrados.
+
+### Estado inicial del repo
+
+- Branch local `iosiv` tenía 10 commits que `origin/iosiv` no había recibido, incluyendo `f8f96f79` (integración de empresas) más todo el trabajo de consultores sin commitear.
+- `master` local apuntaba a `f9048576`, dos commits adelante de la base común con `iosiv`.
+- `origin/master` estaba **3 commits adicionales** más adelante, con una **migración a Clerk** (`a05cd4a7 feat: migrate auth flow to clerk`, `e6db6a58 fix: harden vercel deploy without clerk envs`, `ed5aa0e0 refactor: remove non-google login option`) que el local no había traído.
+
+Un push directo `iosiv → master` habría sobrescrito esos 5 commits ajenos y, en particular, hubiera eliminado la migración a Clerk en producción.
+
+### Riesgos detectados y mitigados antes de commit
+
+| Riesgo | Cómo se manejó |
+|---|---|
+| `tsconfig.tsbuildinfo` staged como cambio | Unstage + añadido a `Docs/FRONTEND/.gitignore` con patrón `*.tsbuildinfo` |
+| `next-env.d.ts` con cambios efímeros de `npm run dev` | Se dejó que `npm run build` lo regenerara a la forma estable; quedó sin diff |
+| Docs y migraciones de empresas previas sin commitear (`FUENTE_DATOS_EMPRESAS.md`, `IMPLEMENTACION_EMPRESAS_SUPABASE.md`, `20260513_*.sql`, `muestra-empresas.json`) | Incluidos en el mismo commit que cierra la integración de consultores, ya que pertenecen a la misma cadena de trabajo |
+| Secretos en archivos nuevos | Auditados: cero leakage. Solo menciones del nombre `SUPABASE_SERVICE_ROLE_KEY` en docs y scripts, nunca valores |
+
+### Resolución de conflictos del merge
+
+Al traer `origin/master` aparecieron 2 conflictos:
+
+**`Docs/FRONTEND/.gitignore`** — trivial: ambas ramas habían añadido líneas distintas (tsbuildinfo vs `.clerk/`). Se combinaron sin perder ninguna.
+
+**`Docs/FRONTEND/src/lib/backend-data.ts`** — la función `resolveBusinessRecords` divergió en su signatura:
+- `iosiv` añadió un 3er parámetro `ciudad?: string | null` para que al crear un consultor sintético tome la ciudad del input en vez del `profile.city`.
+- `master` cambió el 3er parámetro a `db: SupabaseClient = getDatabaseClient()` para permitir inyectar el client correcto bajo Clerk.
+
+**Resolución:** se combinaron en una signatura de 4 parámetros que preserva ambas semánticas:
+
+```ts
+async function resolveBusinessRecords(
+  profile: ProfileRow,
+  email?: string | null,
+  ciudad?: string | null,
+  db: SupabaseClient = getDatabaseClient(),
+)
+```
+
+Los 2 callsites preexistentes que pasaban `db` como 3er argumento se actualizaron a `(profile, email, null, db)` para no romper su intención.
+
+### Validación post-merge
+
+| Paso | Resultado |
+|---|---|
+| `npm install` | Trajo `@clerk/nextjs` y deps relacionadas (faltaban porque iosiv venía de antes de la migración) |
+| `npx tsc --noEmit -p tsconfig.json` | Sin errores |
+| `npm run test:run` | **44/44 tests pasan** (eran 41 antes del merge; master añadió 3) |
+| `npm run build` | exit 0; ruta `/api/consultants/catalog` aparece junto a `/api/companies/catalog` |
+
+### Camino final a producción
+
+1. Commit `91fc5c4d feat: integrar GitHub + SECOP como catálogo masivo de consultores colombianos` con todos los archivos nuevos + cambios pendientes de empresas.
+2. Merge `master` local (`5147c0c8`) — trivial, sólo añadía PDF y borraba assets viejos de `public/`.
+3. Merge `origin/master` (`72b0970f`) — conflictos resueltos como se documentó arriba.
+4. Push `iosiv` → `origin/iosiv` (commit `72b0970f`).
+5. **PR abierto:** [#1 — feat: catálogo masivo de consultores colombianos (GitHub + SECOP)](https://github.com/iosivilich/Nexora_app/pull/1).
+
+**Por qué PR y no push directo a `master`:** el flujo del equipo (CLAUDE.md) usa branches por persona y `master` para producción. Un push directo a `master` dispara deploy a Vercel sin revisión. El PR mantiene la trazabilidad y permite que el resto del equipo confirme que la migración a Clerk + la ingesta de consultores conviven sin romper auth.
+
+### Para el próximo dev que continúe esto
+
+- **No mergees el PR sin verificar** que `/login` y el flujo Clerk siguen funcionando en preview. La signatura de `resolveBusinessRecords` se cambió manualmente; un caso edge en el upsert de perfil podría romperse aunque tests pasen.
+- Si se quiere desactivar Clerk temporalmente para validar la rama, comentar las nuevas dependencias en `app/layout.tsx`, `proxy.ts`, `src/app/context/AuthContext.tsx`, `src/app/pages/LoginPage.tsx`, `src/lib/supabase-server.ts`, `src/lib/backend-data.ts` (todos importan `@clerk/nextjs`).
+- Para futuras integraciones de fuente de datos (ej. otro dataset SECOP), seguir el patrón consolidado: `src/lib/<fuente>.ts` + `app/api/<recurso>/catalog/route.ts` + `scripts/seed-<recurso>.mjs` + `Docs/BASE_DATOS/FUENTE_DATOS_<RECURSO>.md` + migración SQL en `Docs/BASE_DATOS/migrations/`.
+
+### Incidente: workflow de Vercel fallando tras el PR
+
+Al pushear el PR #1, el workflow `.github/workflows/vercel-deploy.yml` falló en dos etapas distintas. Se documenta aquí para que el siguiente intento no caiga en el mismo hoyo.
+
+**Etapa 1 — `--token=` vacío:**
+```
+Error: No existing credentials found. Please run `vercel login` or pass "--token"
+```
+Causa: el secret `VERCEL_TOKEN` no existía en GitHub. Los otros dos (`VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`) sí estaban (creados 2026-04-22). El comando del workflow `vercel pull --token=${{ secrets.VERCEL_TOKEN }}` se renderizaba como `--token=` (cadena vacía) y Vercel CLI lo trataba como ausencia de credenciales.
+
+Fix: crear el token en https://vercel.com/account/tokens con scope al team/cuenta donde vive el proyecto, y añadirlo como secret `VERCEL_TOKEN` en GitHub → Settings → Secrets and variables → Actions.
+
+**Etapa 2 — token sí pero IDs incorrectos:**
+```
+Error: Could not retrieve Project Settings. To link your Project, remove the `.vercel` directory and deploy again.
+```
+Causa: con `VERCEL_TOKEN` ya configurado, la CLI autenticó pero no encontró el proyecto. Los valores antiguos de `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` apuntaban a un proyecto/team que ya no existía con esos IDs (proyecto migrado o renombrado en Vercel durante el último mes).
+
+Fix: regenerar los IDs ejecutando localmente:
+```bash
+cd Docs/FRONTEND
+npx vercel login
+npx vercel link        # te pregunta team + proyecto, genera .vercel/project.json
+cat .vercel/project.json
+# → { "projectId": "prj_XXXX", "orgId": "team_YYYY" o user_YYYY }
+```
+
+Y actualizar los 3 secrets (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`) en GitHub con los valores autoritativos. **No commitear `.vercel/`** (ya está en `.gitignore`).
+
+**Cómo validar el fix sin tocar `master`:**
+1. Cualquier push a `iosiv` re-dispara el workflow `deploy-preview`. Si pasa, los 3 secrets están alineados.
+2. Si no quieres push extra: `gh run rerun <RUN_ID> --repo iosivilich/Nexora_app` re-ejecuta el último run fallido con los secrets actuales.
+3. Recién cuando preview pase, mergear PR #1 dispara `deploy-production` con altísima confianza.
+
+**Aprendizaje para auditorías futuras:**
+Antes de cualquier push a una rama con workflow de deploy, verificar con `gh secret list` que los 3 secrets de Vercel siguen presentes y datan de fechas coherentes con la edad del proyecto. Si el proyecto cambió de team en Vercel, los IDs viejos quedan huérfanos y el síntoma es exactamente el mismo error 2.
+
+### Incidente: login con Clerk seguía mostrando "Acceso en configuración" tras añadir las env vars
+
+Después de que el workflow corrió exitoso y la app respondía 200, el `/login` insistía en mostrar el cartel:
+
+> *"Acceso en configuración — Este despliegue ya incluye la migración a Clerk, pero Vercel todavía no tiene las claves de Clerk configuradas."*
+
+Aunque las dos env vars (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` y `CLERK_SECRET_KEY`) sí estaban añadidas en Vercel y `vercel env ls production` las mostraba marcadas para los environments correctos (`Preview, Production`).
+
+**Causa raíz — auto-Sensitive de Vercel:**
+A partir de cierta fecha de 2026, Vercel **marca por default como "Sensitive"** toda env var nueva creada desde el dashboard web, sin opción de destildar en algunos planes. Las env vars Sensitive:
+
+1. Aparecen en `vercel env ls` con `value = Encrypted`.
+2. **NO se incluyen** en `.vercel/.env.production.local` cuando `vercel pull --environment=production` corre.
+3. Por consecuencia, **no llegan al bundle del cliente** en `vercel build`. Para `NEXT_PUBLIC_*` esto rompe completamente el caso de uso — la variable está diseñada para inyectarse al bundle público.
+
+El síntoma engañoso: en GitHub Actions el log dice `> Downloading 'production' Environment Variables for iosivs-projects/nexora-app` y `Created .vercel/.env.production.local file` — el pull **sí corre exitosamente**, pero las Sensitive simplemente se omiten silenciosamente del archivo. Sin warning ni error.
+
+**Confirmación del diagnóstico:**
+```bash
+curl -s https://nexora-app-umber.vercel.app/login | grep -oE 'src="/_next/static/chunks/[^"]+\.js"' \
+  | head -10 | xargs -I {} curl -s "https://nexora-app-umber.vercel.app{}" \
+  | grep -oE "pk_(test|live)_[A-Za-z0-9_-]{20,}"
+```
+
+Antes del fix: cero resultados (la pub key no estaba en ningún chunk JS).
+Después: aparece `pk_live_Y2xlcmsubmV4b3JhL...` en uno de los chunks.
+
+**Fix — usar `vercel env add` desde CLI:**
+La CLI de Vercel crea env vars como **plain (no-Sensitive)** por default, lo cual sí permite que `vercel pull` las descargue.
+
+```bash
+cd Docs/FRONTEND
+
+# Borrar las Sensitive existentes
+npx vercel env rm NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY production --yes
+npx vercel env rm CLERK_SECRET_KEY production --yes
+
+# Recrear vía CLI (no marca como Sensitive)
+npx vercel env add NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY production
+# pega pk_live_*** cuando lo pida
+# si advierte "NEXT_PUBLIC_ prefix will make CLERK_PUBLISHABLE_KEY visible to anyone visiting your site"
+# → elegir "Leave as is" (es exactamente lo que queremos para una publishable key)
+
+npx vercel env add CLERK_SECRET_KEY production
+# pega sk_live_*** cuando lo pida
+
+# Verificar que ahora sí llegan al pull
+npx vercel pull --environment=production --yes
+grep -c CLERK .vercel/.env.production.local   # → debe imprimir 2
+```
+
+Después: `gh run rerun <RUN_ID> --repo iosivilich/Nexora_app` y el deploy queda bien.
+
+**Confusión secundaria — dos directorios `.vercel/`:**
+Durante el diagnóstico se descubrió que existían dos `.vercel/` en el repo local:
+- `~/code/Nexora_app/.vercel/` (raíz) — con `repo.json` apuntando a un patrón de monorepo Vercel.
+- `~/code/Nexora_app/Docs/FRONTEND/.vercel/` — single-project, lo que el workflow espera.
+
+`npx vercel pull` desde `Docs/FRONTEND` actualizaba el de la **raíz** (porque Vercel CLI sube en el árbol buscando `project.json`/`repo.json`), no el de la subcarpeta. Esto causó el síntoma confuso de "las env vars no aparecen donde las busco" durante la verificación local.
+
+**Fix limpieza:** se borró `~/code/Nexora_app/.vercel/` para dejar solo el de `Docs/FRONTEND/.vercel/` (el que `vercel pull` regenera correctamente cuando se corre desde esa carpeta). El workflow en CI siempre crea su propio `.vercel/` desde cero, así que no se afecta.
+
+**Aprendizaje para auditorías futuras:**
+- En Vercel, **siempre** crear env vars vía `vercel env add` desde la CLI, no desde el dashboard, especialmente las `NEXT_PUBLIC_*`. El dashboard auto-Sensitive las rompe silenciosamente.
+- Si una `NEXT_PUBLIC_*` "existe en Vercel" pero no aparece en el bundle del cliente, el primer diagnóstico es `grep <NOMBRE_VAR> .vercel/.env.production.local` tras un `vercel pull` — si está vacío, es Sensitive.
+- Mantener un solo `.vercel/` por proyecto. Si existen `.vercel/` en raíz y en subcarpeta, borrar el que no corresponda al working-directory del workflow.
+
+---
+
+## Incidente final: Clerk Production no funcionaba en dominio `*.vercel.app` (2026-05-19)
+
+Tras resolver el auto-Sensitive y conseguir que `pk_live_*` llegara al bundle del cliente, aparecieron **dos errores nuevos** que parecían distintos pero compartían causa raíz:
+
+1. En `/login` al hacer click en "Google": `Error con Google: Cannot read properties of undefined (reading 'signIn')`.
+2. En `/` (home): la página se quedaba cargando indefinidamente con spinner.
+
+### Diagnóstico
+
+La causa fue una limitación arquitectónica de Clerk Production combinada con Vercel:
+
+1. Al promover la instancia Clerk a **Production**, Clerk asigna su frontend API a un subdominio `clerk.<tu-dominio>`. La pub key `pk_live_*` está base64-encoded con ese dominio adentro:
+   ```
+   pk_live_Y2xlcmsubmV4b3JhLWFwcC11bWJlci52ZXJjZWwuYXBwJA
+       ↓ base64
+   clerk.nexora-app-umber.vercel.app$
+   ```
+2. Para que el SDK funcione, ese dominio debe responder con SSL válido. Clerk te pide añadir un CNAME `clerk.<tu-dominio> → frontend-api.clerk.services` en tu registrador DNS.
+3. **Pero `*.vercel.app` es un dominio gestionado por Vercel, no por el usuario.** No es posible añadir registros DNS personalizados ahí. Por eso `https://clerk.nexora-app-umber.vercel.app/v1/environment` devolvía `SSL_ERROR_SYSCALL` (subdominio inexistente).
+
+Consecuencia en el cliente:
+- El SDK `@clerk/nextjs` intenta inicializar `clerk.client` con fetch al frontend API → falla → `clerk.client` queda `undefined`.
+- `LoginPage.tsx` llama a `clerk.client.signIn.authenticateWithRedirect(...)` → error de propiedad undefined.
+- `AuthContext` espera `isLoaded === true` → nunca llega → loop de loading infinito en la home.
+
+### Fix: volver a la Development instance de Clerk
+
+Para proyectos sin dominio propio (caso universitario), Clerk Development usa `*.accounts.dev` — un dominio propiedad de Clerk con SSL válido y sin requerir DNS personalizado.
+
+**Procedimiento ejecutado:**
+
+1. En Clerk dashboard, toggle arriba a la derecha → **Development**.
+2. Copiar las nuevas `pk_test_*` y `sk_test_*` desde la sección API Keys de la dev instance.
+3. Reemplazar las env vars de Vercel:
+   ```bash
+   cd Docs/FRONTEND
+   npx vercel env rm NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY production --yes
+   npx vercel env rm CLERK_SECRET_KEY production --yes
+   npx vercel env add NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY production  # interactivo: "Leave as is" + pegar valor
+   npx vercel env add CLERK_SECRET_KEY production                    # interactivo: pegar valor
+   ```
+4. `gh run rerun <ID>` del workflow para reconstruir con las keys nuevas.
+
+### Bug colateral: `vercel env add` con stdin
+
+Durante la migración se intentó automatizar con pipe:
+```bash
+echo "pk_test_..." | npx vercel env add NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY production
+```
+
+La CLI imprimió `✅ Added Environment Variable`, pero al revisar el archivo con `vercel pull`, el valor guardado fue **`""` (dos comillas literales)**, no el valor real. El `echo "..." | ` se interpretó como string vacío.
+
+**Conclusión:** `vercel env add` **debe ejecutarse de forma interactiva** — escribir el comando, esperar el prompt `? What's the value of <VAR>?`, y pegar el valor manualmente con click derecho / Ctrl+Shift+V. No usar pipe ni heredoc.
+
+### Validación final
+
+| Verificación | Comando | Resultado |
+|---|---|---|
+| Pub key en bundle JS del cliente | curl `/login` + grep `pk_test_` | ✓ Encontrada (54 chars) |
+| Decodificación del dominio Clerk | `base64 -d` sobre la parte después de `pk_test_` | `loyal-perch-49.clerk.accounts.dev` |
+| Dominio Clerk responde con SSL válido | `curl https://loyal-perch-49.clerk.accounts.dev/v1/environment` | 200 OK, 570ms |
+| Cartel "Acceso en configuración" desapareció | curl `/login` + grep | Reemplazado por "Bienvenido de nuevo" / "Google es el acceso" |
+| Home `/` responde rápido | `curl /` | 200, 350ms, 14KB |
+
+### Limitaciones aceptadas en Development instance
+
+- Banner amarillo "Development mode" visible en cada sesión (esperado).
+- Consent screen de Google dice "Clerk" en vez de "Nexora" (uso de shared credentials).
+- Hasta 100 usuarios por instancia.
+
+Estas limitaciones son aceptables para entrega universitaria. Para producción real se requiere:
+1. Comprar dominio propio (ej. `nexora.com.co`).
+2. Configurarlo en Vercel como custom domain.
+3. En Clerk → Domains, añadir el dominio nuevo.
+4. Configurar CNAME `clerk.<dominio> → frontend-api.clerk.services` en el registrador DNS.
+5. Crear OAuth credentials propias en Google Cloud Console y pegarlas en Clerk → Social Connections → Google.
+6. Promover Clerk a Production y migrar Vercel a `pk_live_*` / `sk_live_*`.
+
+### Recordatorio de seguridad
+
+Durante el debug se pegó accidentalmente la `CLERK_SECRET_KEY` (`sk_test_*`) en el chat con el asistente IA. Como es development instance limitada a 100 users de prueba, el blast radius es contenido. **Rotar esa key cuando el proyecto pase a tener usuarios reales o se promueva a Production instance.** Procedimiento: Clerk dashboard → Configure → API Keys → opción "Regenerate" en la fila de Secret Key (puede estar bajo el menú `⋮` o requerir click en "Reveal & manage"). Si no aparece la opción, eliminar y recrear la app entera funciona.
