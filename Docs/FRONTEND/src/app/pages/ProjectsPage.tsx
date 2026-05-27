@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { fetchApplications, fetchChallenges, fetchSeedStatus } from '../../lib/api';
 import type { ApplicationSummary, ChallengeSummary, SeedStatus } from '../../lib/backend-types';
 import { CreateProjectModal } from '../components/CreateProjectModal';
+import { ProjectDetailModal } from '../components/ProjectDetailModal';
 
 const emptySeedStatus: SeedStatus = {
   companiesSeeded: 0,
@@ -43,6 +44,7 @@ export function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<ChallengeSummary | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -181,28 +183,34 @@ export function ProjectsPage() {
                   </GlassCard>
                 ) : (
                   visibleChallenges.map((project) => (
-                    <GlassCard key={project.id} className="p-6">
-                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-                        <div className="flex-1">
-                          <h3 className="text-xl text-white mb-2" style={{ fontFamily: 'var(--font-secondary)' }}>
-                            {project.title}
-                          </h3>
-                          <p className="text-white/70 mb-4">{project.description}</p>
-                          <div className="flex flex-wrap gap-4 text-sm text-white/60">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4" />
-                              <span>Publicado {formatPublishedDate(project.publishedAt)}</span>
+                    <button
+                      key={project.id}
+                      onClick={() => setSelectedProject(project)}
+                      className="w-full text-left"
+                    >
+                      <GlassCard className="p-6 hover:border-blue-500/30 transition-colors cursor-pointer">
+                        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                          <div className="flex-1">
+                            <h3 className="text-xl text-white mb-2" style={{ fontFamily: 'var(--font-secondary)' }}>
+                              {project.title}
+                            </h3>
+                            <p className="text-white/70 mb-4">{project.description}</p>
+                            <div className="flex flex-wrap gap-4 text-sm text-white/60">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4" />
+                                <span>Publicado {formatPublishedDate(project.publishedAt)}</span>
+                              </div>
+                              <span>{project.mode}</span>
+                              <span>{project.specialty ?? 'Sin especialidad'}</span>
+                              <span>{project.applicantCount ?? 0} postulaciones</span>
                             </div>
-                            <span>{project.mode}</span>
-                            <span>{project.specialty ?? 'Sin especialidad'}</span>
-                            <span>{project.applicantCount ?? 0} postulaciones</span>
                           </div>
+                          <span className="px-4 py-2 rounded-lg text-sm bg-[#2563EB]/20 text-[#9CC2FF] border border-[#2563EB]/30">
+                            {project.status}
+                          </span>
                         </div>
-                        <span className="px-4 py-2 rounded-lg text-sm bg-[#2563EB]/20 text-[#9CC2FF] border border-[#2563EB]/30">
-                          {project.status}
-                        </span>
-                      </div>
-                    </GlassCard>
+                      </GlassCard>
+                    </button>
                   ))
                 )}
               </div>
@@ -267,6 +275,21 @@ export function ProjectsPage() {
       </motion.div>
 
       <CreateProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={() => void loadData()} />
+
+      {selectedProject && (
+        <ProjectDetailModal
+          project={selectedProject}
+          onClose={() => setSelectedProject(null)}
+          onDeleted={(id) => {
+            setProjects((prev) => prev.filter((p) => p.id !== id));
+            setSelectedProject(null);
+          }}
+          onUpdated={(updated) => {
+            setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+            setSelectedProject(null);
+          }}
+        />
+      )}
     </div>
   );
 }

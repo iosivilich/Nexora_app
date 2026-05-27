@@ -1469,6 +1469,60 @@ export async function createChallenge(input: {
   return mapBusinessChallenge(data as ChallengeRow, 0, (companyData ?? null) as BusinessCompanyRow | null);
 }
 
+export async function deleteChallenge(
+  idDesafio: number,
+  idEmpresa: number,
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  const { error } = await db
+    .from('desafio')
+    .delete()
+    .eq('id_desafio', idDesafio)
+    .eq('id_empresa', idEmpresa);
+
+  if (error) throw error;
+}
+
+export async function updateChallenge(
+  idDesafio: number,
+  idEmpresa: number,
+  input: {
+    title?: string;
+    description?: string;
+    specialty?: string;
+    budget?: number | null;
+    mode?: string | null;
+    status?: string | null;
+  },
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  const patch: Record<string, unknown> = {};
+  if (input.title !== undefined) patch.titulo = input.title;
+  if (input.description !== undefined) patch.descripcion = input.description;
+  if (input.specialty !== undefined) patch.especialidad_requerida = input.specialty;
+  if ('budget' in input) patch.presupuesto_estimado = input.budget ?? null;
+  if (input.mode !== undefined) patch.modalidad = input.mode;
+  if (input.status !== undefined) patch.estado = input.status;
+
+  const { data, error } = await db
+    .from('desafio')
+    .update(patch)
+    .eq('id_desafio', idDesafio)
+    .eq('id_empresa', idEmpresa)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+
+  const { data: companyData } = await db
+    .from('empresa')
+    .select('*')
+    .eq('id_empresa', idEmpresa)
+    .maybeSingle();
+
+  return mapBusinessChallenge(data as ChallengeRow, 0, (companyData ?? null) as BusinessCompanyRow | null);
+}
+
 export async function listApplications(filters: {
   idConsultor?: number | null;
   idEmpresa?: number | null;

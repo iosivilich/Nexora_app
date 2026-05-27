@@ -119,6 +119,28 @@ export async function createChallenge(input: {
   });
 }
 
+export async function deleteChallenge(id: string) {
+  return getJson<{ success: boolean }>(`/api/challenges/${id}`, { method: 'DELETE' });
+}
+
+export async function updateChallenge(
+  id: string,
+  input: {
+    title?: string;
+    description?: string;
+    specialty?: string;
+    budget?: number | null;
+    mode?: string | null;
+    status?: string | null;
+  },
+) {
+  return getJson<import('./backend-types').ChallengeSummary>(`/api/challenges/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+}
+
 export async function fetchApplications(params: {
   idConsultor?: number;
   idEmpresa?: number;
