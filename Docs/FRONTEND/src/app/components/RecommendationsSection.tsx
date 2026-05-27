@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Sparkles, MapPin, Building2, BadgeCheck, Star, Globe, X, ExternalLink, Briefcase, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GlassCard } from './GlassCard';
+import { ConsultantProfileModal } from './ConsultantProfileModal';
 import { fetchRecommendations } from '../../lib/api';
 import type {
   RecommendationsResponse,
@@ -90,8 +91,27 @@ export function RecommendationsSection() {
       </section>
 
       <AnimatePresence>
-        {selectedConsultant && (
-          <ConsultantModal
+        {selectedConsultant && selectedConsultant.rec.profileId && (
+          <ConsultantProfileModal
+            consultant={{
+              profileId: selectedConsultant.rec.profileId,
+              name: selectedConsultant.rec.name,
+              role: selectedConsultant.rec.role,
+              city: selectedConsultant.rec.city,
+              rating: selectedConsultant.rec.rating,
+              experience: selectedConsultant.rec.experience,
+              verified: selectedConsultant.rec.verified,
+              avatarUrl: selectedConsultant.rec.avatarUrl,
+              bio: selectedConsultant.rec.bio,
+              expertise: selectedConsultant.rec.expertise,
+              score: selectedConsultant.score,
+              reasons: selectedConsultant.reasons,
+            }}
+            onClose={() => setSelectedConsultant(null)}
+          />
+        )}
+        {selectedConsultant && !selectedConsultant.rec.profileId && (
+          <ConsultantModalFallback
             selected={selectedConsultant}
             onClose={() => setSelectedConsultant(null)}
           />
@@ -218,7 +238,7 @@ function EmpresaRecCard({
   );
 }
 
-function ConsultantModal({ selected, onClose }: { selected: SelectedConsultant; onClose: () => void }) {
+function ConsultantModalFallback({ selected, onClose }: { selected: SelectedConsultant; onClose: () => void }) {
   const { rec, score, reasons } = selected;
   const avatarSrc = rec.avatarUrl || `https://ui-avatars.com/api/?background=0A1F44&color=FFFFFF&bold=true&size=128&name=${encodeURIComponent(rec.name)}`;
 

@@ -267,6 +267,7 @@ export interface RecommendationItem<T = unknown> {
 
 export interface RecommendedConsultant {
   id:          string | number;
+  profileId?:  string | null;
   name:        string;
   role:        string;
   text:        string;

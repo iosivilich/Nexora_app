@@ -80,7 +80,21 @@ export async function GET(request: Request) {
       });
       if (error) throw error;
 
-      const candidates: ConsultantCandidate[] = ((data ?? []) as ConsultorMatch[]).map((row) => ({
+      const rawRows = (data ?? []) as ConsultorMatch[];
+      const consultorIds = rawRows.map((r) => r.id_consultor);
+
+      // Batch-fetch profile UUIDs so the frontend can call addConnection/toggleFavorite
+      const { data: profileRows } = await getDb()
+        .from('profiles')
+        .select('id, consultor_id')
+        .in('consultor_id', consultorIds);
+      const profileIdByConsultorId = new Map<number, string>(
+        (profileRows ?? [])
+          .filter((p): p is { id: string; consultor_id: number } => p.consultor_id != null)
+          .map((p) => [p.consultor_id, p.id]),
+      );
+
+      const candidates: ConsultantCandidate[] = rawRows.map((row) => ({
         id: row.id_consultor,
         name: [row.nombre, row.apellido].filter(Boolean).join(' ').trim() || 'Consultor',
         role: row.rol ?? row.especialidad ?? 'Consultor',
@@ -96,11 +110,17 @@ export async function GET(request: Request) {
         textSimilarity: row.similarity,
       }));
 
-      const items = rankConsultants(
+      const ranked = rankConsultants(
         { city: empresa?.ciudad ?? context.profile.city ?? '', departamento: empresa?.departamento ?? null },
         candidates,
         k,
       );
+
+      // Inject profileId into each ranked item so the UI can act on them
+      const items = ranked.map((r) => ({
+        ...r,
+        item: { ...r.item, profileId: profileIdByConsultorId.get(r.id as number) ?? null },
+      }));
 
       return NextResponse.json({
         userType,

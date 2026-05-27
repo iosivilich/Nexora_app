@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { GlassCard } from '../components/GlassCard';
 import { ConsultantCard } from '../components/ConsultantCard';
 import { StatsCard } from '../components/StatsCard';
+import { ConsultantProfileModal } from '../components/ConsultantProfileModal';
+import { AnimatePresence } from 'motion/react';
 import {
   Users,
   Briefcase,
@@ -23,7 +25,7 @@ import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
 import { fetchDashboard } from '../../lib/api';
 import { RecommendationsSection } from '../components/RecommendationsSection';
-import type { DashboardSnapshot } from '../../lib/backend-types';
+import type { DashboardSnapshot, ConsultantDirectoryItem } from '../../lib/backend-types';
 
 const emptyDashboard: DashboardSnapshot = {
   consultantCount: 0,
@@ -95,6 +97,7 @@ function CompanyHome({
   loading: boolean;
 }) {
   const topCity = dashboard.topCities[0];
+  const [selectedConsultant, setSelectedConsultant] = useState<ConsultantDirectoryItem | null>(null);
 
   return (
     <>
@@ -197,12 +200,36 @@ function CompanyHome({
                 </GlassCard>
               ))
             : dashboard.featuredConsultants.map((consultant) => (
-                <ConsultantCard key={consultant.id} {...consultant} />
+                <ConsultantCard
+                  key={consultant.id}
+                  {...consultant}
+                  onViewProfile={() => setSelectedConsultant(consultant)}
+                />
               ))}
         </div>
       </section>
 
       <HowItWorks company />
+
+      <AnimatePresence>
+        {selectedConsultant && (
+          <ConsultantProfileModal
+            consultant={{
+              profileId: selectedConsultant.id,
+              name: selectedConsultant.name,
+              role: selectedConsultant.role,
+              city: selectedConsultant.city,
+              rating: selectedConsultant.rating,
+              experience: selectedConsultant.experience,
+              verified: selectedConsultant.verified,
+              avatarUrl: selectedConsultant.image,
+              bio: selectedConsultant.bio,
+              expertise: selectedConsultant.expertise,
+            }}
+            onClose={() => setSelectedConsultant(null)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }
