@@ -38,11 +38,18 @@ export async function PUT(request: Request) {
       experienceYears?: number;
       age?: number;
       projects?: number;
+      tarifaReferencial?: number;
+      departamento?: string;
       nombreEmpresa?: string;
       sector?: string;
       companySize?: string;
       emailContacto?: string;
       phone?: string;
+      nit?: string;
+      repLegal?: string;
+      website?: string;
+      tipoOrganizacion?: string;
+      esPyme?: boolean;
     };
 
     const context = await getAuthenticatedContext();
@@ -59,11 +66,18 @@ export async function PUT(request: Request) {
       experienceYears: body.experienceYears,
       age: body.age,
       projects: body.projects,
+      tarifaReferencial: body.tarifaReferencial,
+      departamento: body.departamento,
       nombreEmpresa: body.nombreEmpresa,
       sector: body.sector,
       companySize: body.companySize,
       emailContacto: body.emailContacto,
       phone: body.phone,
+      nit: body.nit,
+      repLegal: body.repLegal,
+      website: body.website,
+      tipoOrganizacion: body.tipoOrganizacion,
+      esPyme: body.esPyme,
     }, context.routeClient);
 
     return NextResponse.json(profile);

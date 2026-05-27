@@ -22,6 +22,7 @@ import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
 import { fetchDashboard } from '../../lib/api';
+import { RecommendationsSection } from '../components/RecommendationsSection';
 import type { DashboardSnapshot } from '../../lib/backend-types';
 
 const emptyDashboard: DashboardSnapshot = {
@@ -173,6 +174,8 @@ function CompanyHome({
         />
       </div>
 
+      <RecommendationsSection />
+
       <section className="mb-16">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -291,6 +294,8 @@ function ConsultantHome({
           />
         </div>
       </section>
+
+      <RecommendationsSection />
 
       <HowItWorks />
 

@@ -73,6 +73,8 @@ type BusinessCompanyRow = {
   website: string | null;
   tipo_organizacion: string | null;
   es_pyme: boolean | null;
+  razon_social_clarity: number | null;
+  razon_social_clarity_explain: string | null;
 };
 
 type BusinessConsultorRow = {
@@ -87,6 +89,12 @@ type BusinessConsultorRow = {
   estado: string | null;
   fecha_registro: string | null;
   ciudad: string | null;
+  departamento: string | null;
+  rol: string | null;
+  bio: string | null;
+  expertise: string[] | null;
+  avatar_url: string | null;
+  verified: boolean | null;
 };
 
 type ChallengeRow = {
@@ -1808,6 +1816,8 @@ function mapCompanyRecord(companyRecord: BusinessCompanyRow | null) {
         website: companyRecord.website ?? null,
         tipoOrganizacion: companyRecord.tipo_organizacion ?? null,
         esPyme: companyRecord.es_pyme ?? false,
+        razonSocialClarity: companyRecord.razon_social_clarity ?? null,
+        razonSocialClarityExplain: companyRecord.razon_social_clarity_explain ?? null,
       }
     : null;
 }
@@ -1826,6 +1836,12 @@ function mapConsultantRecord(consultantRecord: BusinessConsultorRow | null) {
         estado: consultantRecord.estado ?? null,
         fechaRegistro: consultantRecord.fecha_registro ?? null,
         ciudad: consultantRecord.ciudad ?? null,
+        departamento: consultantRecord.departamento ?? null,
+        rol: consultantRecord.rol ?? null,
+        bio: consultantRecord.bio ?? null,
+        expertise: consultantRecord.expertise ?? [],
+        avatarUrl: consultantRecord.avatar_url ?? null,
+        verified: consultantRecord.verified ?? false,
       }
     : null;
 }
@@ -1951,12 +1967,21 @@ export async function updateProfileDetails(
     experienceYears?: number | null;
     age?: number | null;
     projects?: number | null;
+    tarifaReferencial?: number | null;
+    departamento?: string | null;
     // Empresa fields
     nombreEmpresa?: string | null;
     sector?: string | null;
     companySize?: string | null;
     emailContacto?: string | null;
     phone?: string | null;
+    nit?: string | null;
+    repLegal?: string | null;
+    website?: string | null;
+    tipoOrganizacion?: string | null;
+    esPyme?: boolean | null;
+    razonSocialClarity?: number | null;
+    razonSocialClarityExplain?: string | null;
   },
   db: SupabaseClient = getDatabaseClient(),
 ) {
@@ -2051,20 +2076,65 @@ export async function updateProfileDetails(
 
     if (consultantRecord) {
       const consultorUpdates: Record<string, any> = {};
-      
+
       if (typeof input.experienceYears === 'number') {
         consultorUpdates['años_experiencia'] = input.experienceYears;
       }
       if (typeof input.role === 'string') {
+        consultorUpdates.rol = input.role;
         consultorUpdates.especialidad = input.role;
       }
       if (typeof input.city === 'string') {
         consultorUpdates.ciudad = input.city;
       }
+      if (typeof input.departamento === 'string') {
+        consultorUpdates.departamento = input.departamento;
+      }
+      if (typeof input.bio === 'string') {
+        consultorUpdates.bio = input.bio;
+      }
+      if (Array.isArray(input.expertise)) {
+        consultorUpdates.expertise = input.expertise;
+      }
+      if (typeof input.tarifaReferencial === 'number') {
+        consultorUpdates.tarifa_referencial = input.tarifaReferencial;
+      }
+      if (typeof input.avatarUrl === 'string') {
+        consultorUpdates.avatar_url = input.avatarUrl;
+      }
       if (typeof input.fullName === 'string' && input.fullName.trim() !== '') {
         const parts = input.fullName.trim().split(/\s+/);
         consultorUpdates.nombre = parts[0] || 'Consultor';
         consultorUpdates.apellido = parts.slice(1).join(' ') || 'Nexora';
+      }
+
+      // Re-embebido semántico: si cambia algún campo textual relevante,
+      // refrescamos el vector multilingual-e5-small.
+      const textChanged =
+        consultorUpdates.rol !== undefined ||
+        consultorUpdates.especialidad !== undefined ||
+        consultorUpdates.bio !== undefined ||
+        consultorUpdates.expertise !== undefined;
+      if (textChanged) {
+        try {
+          const { embedText, pgVectorLiteral } = await import('./embeddings');
+          const nextExpertise = (consultorUpdates.expertise as string[] | undefined) ?? consultantRecord.expertise ?? [];
+          const passage = [
+            consultorUpdates.rol ?? consultantRecord.rol,
+            consultorUpdates.especialidad ?? consultantRecord.especialidad,
+            consultorUpdates.bio ?? consultantRecord.bio,
+            ...nextExpertise,
+          ]
+            .filter(Boolean)
+            .join(' ');
+          const vector = await embedText(passage, 'passage');
+          if (vector) {
+            consultorUpdates.embedding = pgVectorLiteral(vector);
+            consultorUpdates.embedding_updated_at = new Date().toISOString();
+          }
+        } catch (error) {
+          console.warn('No pudimos refrescar el embedding del consultor', error);
+        }
       }
 
       if (Object.keys(consultorUpdates).length > 0) {
@@ -2095,6 +2165,71 @@ export async function updateProfileDetails(
     }
     if (typeof input.phone === 'string') {
       empresaUpdates.telefono = input.phone;
+    }
+    if (typeof input.nit === 'string') {
+      empresaUpdates.nit = input.nit;
+    }
+    if (typeof input.city === 'string') {
+      empresaUpdates.ciudad = input.city;
+    }
+    if (typeof input.departamento === 'string') {
+      empresaUpdates.departamento = input.departamento;
+    }
+    if (typeof input.repLegal === 'string') {
+      empresaUpdates.rep_legal = input.repLegal;
+    }
+    if (typeof input.website === 'string') {
+      empresaUpdates.website = input.website;
+    }
+    if (typeof input.tipoOrganizacion === 'string') {
+      empresaUpdates.tipo_organizacion = input.tipoOrganizacion;
+    }
+    if (typeof input.esPyme === 'boolean') {
+      empresaUpdates.es_pyme = input.esPyme;
+    }
+
+    // Si cambió la razón social, recalcular claridad con Groq (best-effort)
+    if (typeof input.nombreEmpresa === 'string' && input.nombreEmpresa.trim() !== companyRecord.nombre_empresa?.trim()) {
+      try {
+        const { scoreRazonSocialClarity } = await import('./razon-social-clarity');
+        const clarity = await scoreRazonSocialClarity({
+          razonSocial: input.nombreEmpresa,
+          sector: input.sector ?? companyRecord.sector ?? null,
+          tipoOrganizacion: input.tipoOrganizacion ?? companyRecord.tipo_organizacion ?? null,
+        });
+        if (clarity) {
+          empresaUpdates.razon_social_clarity = clarity.clarity;
+          empresaUpdates.razon_social_clarity_explain = clarity.explanation;
+          empresaUpdates.razon_social_clarity_at = new Date().toISOString();
+        }
+      } catch (error) {
+        console.warn('No pudimos recalcular razon_social_clarity', error);
+      }
+    }
+
+    // Re-embebido semántico de la empresa cuando cambia texto relevante.
+    const empresaTextChanged =
+      empresaUpdates.nombre_empresa !== undefined ||
+      empresaUpdates.sector !== undefined ||
+      empresaUpdates.descripcion !== undefined;
+    if (empresaTextChanged) {
+      try {
+        const { embedText, pgVectorLiteral } = await import('./embeddings');
+        const passage = [
+          empresaUpdates.nombre_empresa ?? companyRecord.nombre_empresa,
+          empresaUpdates.sector ?? companyRecord.sector,
+          empresaUpdates.descripcion ?? companyRecord.descripcion,
+        ]
+          .filter(Boolean)
+          .join(' ');
+        const vector = await embedText(passage, 'passage');
+        if (vector) {
+          empresaUpdates.embedding = pgVectorLiteral(vector);
+          empresaUpdates.embedding_updated_at = new Date().toISOString();
+        }
+      } catch (error) {
+        console.warn('No pudimos refrescar el embedding de la empresa', error);
+      }
     }
 
     if (Object.keys(empresaUpdates).length > 0) {

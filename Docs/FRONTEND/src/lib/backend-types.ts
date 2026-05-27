@@ -121,6 +121,8 @@ export interface ProfileDetails {
     website: string | null;
     tipoOrganizacion: string | null;
     esPyme: boolean;
+    razonSocialClarity: number | null;
+    razonSocialClarityExplain: string | null;
   } | null;
   consultantRecord: {
     idConsultor: number;
@@ -134,6 +136,12 @@ export interface ProfileDetails {
     estado: string | null;
     fechaRegistro: string | null;
     ciudad: string | null;
+    departamento: string | null;
+    rol: string | null;
+    bio: string | null;
+    expertise: string[];
+    avatarUrl: string | null;
+    verified: boolean;
   } | null;
   settings: UserSettings;
 }
@@ -248,4 +256,45 @@ export interface ConsultantCatalogResponse {
   items:   ConsultantCatalogItem[];
   total:   number;
   sources: ConsultantSource[];
+}
+
+export interface RecommendationItem<T = unknown> {
+  id:      string | number;
+  score:   number;
+  reasons: string[];
+  item:    T;
+}
+
+export interface RecommendedConsultant {
+  id:          string | number;
+  name:        string;
+  role:        string;
+  text:        string;
+  city:        string;
+  rating?:     number | null;
+  verified?:   boolean | null;
+  experience?: number | null;
+  avatarUrl?:  string | null;
+  bio?:        string | null;
+  expertise?:  string[];
+}
+
+export interface RecommendedEmpresa {
+  id:             string | number;
+  nombreEmpresa:  string;
+  razonSocial:    string;
+  text:           string;
+  city:           string;
+  departamento?:  string | null;
+  sector?:        string | null;
+  esPyme?:        boolean | null;
+  clarityScore?:  number | null;
+  website?:       string | null;
+  descripcion?:   string | null;
+}
+
+export interface RecommendationsResponse {
+  userType: 'EMPRESA' | 'CONSULTOR' | null;
+  query: { text: string; city: string; departamento?: string | null } | null;
+  items: Array<RecommendationItem<RecommendedConsultant | RecommendedEmpresa>>;
 }

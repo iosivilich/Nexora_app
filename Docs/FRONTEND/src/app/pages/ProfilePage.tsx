@@ -19,6 +19,7 @@ export function ProfilePage() {
   const [form, setForm] = useState({
     fullName: '',
     city: '',
+    departamento: '',
     avatarUrl: '',
     role: '',
     bio: '',
@@ -26,11 +27,17 @@ export function ProfilePage() {
     experienceYears: '',
     age: '',
     projects: '',
+    tarifaReferencial: '',
     nombreEmpresa: '',
     sector: '',
     companySize: '',
     emailContacto: '',
     phone: '',
+    nit: '',
+    repLegal: '',
+    website: '',
+    tipoOrganizacion: '',
+    esPyme: false,
   });
 
   useEffect(() => {
@@ -41,18 +48,25 @@ export function ProfilePage() {
     setForm({
       fullName: profile.fullName,
       city: profile.city,
+      departamento: profile.companyRecord?.departamento ?? profile.consultantRecord?.departamento ?? '',
       avatarUrl: profile.avatarUrl,
-      role: profile.consultantProfile?.role ?? '',
-      bio: profile.consultantProfile?.bio ?? profile.companyRecord?.descripcion ?? '',
-      expertise: profile.consultantProfile?.expertise.join(', ') ?? '',
+      role: profile.consultantProfile?.role ?? profile.consultantRecord?.rol ?? '',
+      bio: profile.consultantProfile?.bio ?? profile.consultantRecord?.bio ?? profile.companyRecord?.descripcion ?? '',
+      expertise: (profile.consultantProfile?.expertise ?? profile.consultantRecord?.expertise ?? []).join(', '),
       experienceYears: String(profile.consultantProfile?.experience ?? profile.consultantRecord?.anosExperiencia ?? ''),
       age: String(profile.consultantProfile?.age ?? ''),
       projects: String(profile.consultantProfile?.projects ?? ''),
+      tarifaReferencial: String(profile.consultantRecord?.tarifaReferencial ?? ''),
       nombreEmpresa: profile.companyRecord?.nombreEmpresa ?? '',
       sector: profile.companyRecord?.sector ?? '',
       companySize: profile.companyRecord?.tamanoEmpresa ?? '',
       emailContacto: profile.companyRecord?.emailContacto ?? '',
       phone: profile.companyRecord?.telefono ?? '',
+      nit: profile.companyRecord?.nit ?? '',
+      repLegal: profile.companyRecord?.repLegal ?? '',
+      website: profile.companyRecord?.website ?? '',
+      tipoOrganizacion: profile.companyRecord?.tipoOrganizacion ?? '',
+      esPyme: profile.companyRecord?.esPyme ?? false,
     });
   }, [profile]);
 
@@ -94,10 +108,12 @@ export function ProfilePage() {
         city: form.city,
         avatarUrl: form.avatarUrl,
         bio: form.bio,
+        departamento: form.departamento || undefined,
         role: isConsultant ? form.role : undefined,
         experienceYears: isConsultant ? Number(form.experienceYears) || 0 : undefined,
         age: isConsultant ? Number(form.age) || 0 : undefined,
         projects: isConsultant ? Number(form.projects) || 0 : undefined,
+        tarifaReferencial: isConsultant && form.tarifaReferencial ? Number(form.tarifaReferencial) : undefined,
         expertise: isConsultant
           ? form.expertise
               .split(',')
@@ -109,6 +125,11 @@ export function ProfilePage() {
         companySize: !isConsultant ? form.companySize : undefined,
         emailContacto: !isConsultant ? form.emailContacto : undefined,
         phone: !isConsultant ? form.phone : undefined,
+        nit: !isConsultant ? form.nit || undefined : undefined,
+        repLegal: !isConsultant ? form.repLegal || undefined : undefined,
+        website: !isConsultant ? form.website || undefined : undefined,
+        tipoOrganizacion: !isConsultant ? form.tipoOrganizacion || undefined : undefined,
+        esPyme: !isConsultant ? form.esPyme : undefined,
       });
       await refreshProfile();
       setIsEditing(false);
@@ -230,7 +251,7 @@ export function ProfilePage() {
                   <div key={key}>
                     <label className="block text-sm text-white/60 mb-2">{label}</label>
                     <input
-                      value={form[key as keyof typeof form]}
+                      value={String(form[key as keyof typeof form] ?? '')}
                       onChange={(event) =>
                         setForm((current) => ({ ...current, [key]: event.target.value }))
                       }
@@ -300,6 +321,38 @@ export function ProfilePage() {
                       )}
                     </div>
                   </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                      <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Tarifa referencial (COP)</p>
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          value={form.tarifaReferencial}
+                          onChange={(e) => setForm((c) => ({ ...c, tarifaReferencial: e.target.value }))}
+                          className="w-full bg-transparent border-none text-white font-semibold focus:outline-none"
+                          placeholder="Ej. 250000"
+                        />
+                      ) : (
+                        <p className="text-white font-semibold">
+                          {form.tarifaReferencial ? `$${Number(form.tarifaReferencial).toLocaleString('es-CO')}` : 'Sin tarifa'}
+                        </p>
+                      )}
+                    </div>
+                    <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                      <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Departamento</p>
+                      {isEditing ? (
+                        <input
+                          value={form.departamento}
+                          onChange={(e) => setForm((c) => ({ ...c, departamento: e.target.value }))}
+                          className="w-full bg-transparent border-none text-white focus:outline-none"
+                          placeholder="Ej. Cundinamarca"
+                        />
+                      ) : (
+                        <p className="text-white">{form.departamento || 'Sin departamento'}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </GlassCard>
             ) : (
@@ -361,7 +414,120 @@ export function ProfilePage() {
                       <p className="text-white">{form.emailContacto || 'Sin correo público'}</p>
                     )}
                   </div>
+                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                    <p className="text-xs text-white/40 uppercase tracking-wider mb-2">NIT</p>
+                    {isEditing ? (
+                      <input
+                        value={form.nit}
+                        onChange={(e) => setForm((c) => ({ ...c, nit: e.target.value }))}
+                        className="w-full bg-transparent border-none text-white focus:outline-none"
+                        placeholder="Ej. 900123456"
+                      />
+                    ) : (
+                      <p className="text-white">{form.nit || 'Sin NIT'}</p>
+                    )}
+                  </div>
+                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                    <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Departamento</p>
+                    {isEditing ? (
+                      <input
+                        value={form.departamento}
+                        onChange={(e) => setForm((c) => ({ ...c, departamento: e.target.value }))}
+                        className="w-full bg-transparent border-none text-white focus:outline-none"
+                        placeholder="Ej. Cundinamarca"
+                      />
+                    ) : (
+                      <p className="text-white">{form.departamento || 'Sin departamento'}</p>
+                    )}
+                  </div>
+                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                    <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Representante Legal</p>
+                    {isEditing ? (
+                      <input
+                        value={form.repLegal}
+                        onChange={(e) => setForm((c) => ({ ...c, repLegal: e.target.value }))}
+                        className="w-full bg-transparent border-none text-white focus:outline-none"
+                        placeholder="Nombre completo"
+                      />
+                    ) : (
+                      <p className="text-white">{form.repLegal || 'Sin representante'}</p>
+                    )}
+                  </div>
+                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                    <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Sitio Web</p>
+                    {isEditing ? (
+                      <input
+                        value={form.website}
+                        onChange={(e) => setForm((c) => ({ ...c, website: e.target.value }))}
+                        className="w-full bg-transparent border-none text-white focus:outline-none"
+                        placeholder="https://empresa.com"
+                      />
+                    ) : (
+                      <p className="text-white">{form.website || 'Sin sitio web'}</p>
+                    )}
+                  </div>
+                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                    <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Tipo de Organización</p>
+                    {isEditing ? (
+                      <select
+                        value={form.tipoOrganizacion}
+                        onChange={(e) => setForm((c) => ({ ...c, tipoOrganizacion: e.target.value }))}
+                        className="w-full bg-transparent border-none text-white focus:outline-none"
+                      >
+                        <option value="" className="bg-[#0A1F44]">Seleccionar...</option>
+                        <option value="SOCIEDAD POR ACCIONES SIMPLIFICADA" className="bg-[#0A1F44]">SAS</option>
+                        <option value="SOCIEDAD ANONIMA ABIERTA COLOMBIANA" className="bg-[#0A1F44]">S.A.</option>
+                        <option value="SOCIEDAD DE RESPONSABILIDAD LIMITADA COLOMBIANA" className="bg-[#0A1F44]">Ltda.</option>
+                        <option value="ENTIDADES SIN ANIMO DE LUCRO" className="bg-[#0A1F44]">ESAL</option>
+                        <option value="PERSONA NATURAL COLOMBIANA" className="bg-[#0A1F44]">Persona Natural</option>
+                        <option value="OTRO" className="bg-[#0A1F44]">Otro</option>
+                      </select>
+                    ) : (
+                      <p className="text-white">{form.tipoOrganizacion || 'Sin tipo definido'}</p>
+                    )}
+                  </div>
+                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                    <p className="text-xs text-white/40 uppercase tracking-wider mb-2">¿Es PyME?</p>
+                    {isEditing ? (
+                      <label className="flex items-center gap-2 text-white">
+                        <input
+                          type="checkbox"
+                          checked={form.esPyme}
+                          onChange={(e) => setForm((c) => ({ ...c, esPyme: e.target.checked }))}
+                          className="h-4 w-4"
+                        />
+                        <span>{form.esPyme ? 'Sí' : 'No'}</span>
+                      </label>
+                    ) : (
+                      <p className="text-white">{form.esPyme ? 'Sí' : 'No'}</p>
+                    )}
+                  </div>
                 </div>
+
+                {profile.companyRecord?.razonSocialClarity !== null &&
+                 profile.companyRecord?.razonSocialClarity !== undefined && (
+                  <div className="mt-6 bg-white/5 p-4 rounded-2xl border border-white/5">
+                    <p className="text-xs text-white/40 uppercase tracking-wider mb-2">
+                      Claridad de la Razón Social
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#2563EB] to-[#6D5EF3]"
+                          style={{ width: `${(profile.companyRecord.razonSocialClarity ?? 0) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-white font-semibold text-sm">
+                        {Math.round((profile.companyRecord.razonSocialClarity ?? 0) * 100)}%
+                      </span>
+                    </div>
+                    {profile.companyRecord.razonSocialClarityExplain && (
+                      <p className="text-xs text-white/50 mt-2">
+                        {profile.companyRecord.razonSocialClarityExplain}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="mt-6">
                   <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Descripción</p>

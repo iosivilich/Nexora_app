@@ -14,6 +14,7 @@ import type {
   ConversationPreview,
   ConversationThread,
   AppointmentSummary,
+  RecommendationsResponse,
 } from './backend-types';
 
 async function getJson<T>(input: string, init?: RequestInit): Promise<T> {
@@ -175,11 +176,18 @@ export async function updateProfile(input: {
   experienceYears?: number;
   age?: number;
   projects?: number;
+  tarifaReferencial?: number;
+  departamento?: string;
   nombreEmpresa?: string;
   sector?: string;
   companySize?: string;
   emailContacto?: string;
   phone?: string;
+  nit?: string;
+  repLegal?: string;
+  website?: string;
+  tipoOrganizacion?: string;
+  esPyme?: boolean;
 }) {
   return getJson<ProfileDetails>('/api/profile/me', {
     method: 'PUT',
@@ -325,6 +333,10 @@ export async function fetchSeedStatus() {
 
 export async function triggerSeedDemo() {
   return getJson<SeedStatus>('/api/demo/seed', { method: 'POST' });
+}
+
+export async function fetchRecommendations(k = 10) {
+  return getJson<RecommendationsResponse>(`/api/recommendations?k=${k}`);
 }
 
 export async function fetchCompaniesCatalog(params?: {
