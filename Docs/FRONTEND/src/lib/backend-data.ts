@@ -1306,10 +1306,12 @@ export async function getCompanies(limit?: number) {
 }
 
 export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
-  const [consultants, companies] = await Promise.all([
+  const [consultants, companies, empresaCountResult] = await Promise.all([
     getConsultants(),
     getCompanies(),
+    supabasePublic.from('empresa').select('id_empresa', { count: 'exact', head: true }),
   ]);
+  const totalEmpresaCount = empresaCountResult.count ?? companies.length;
 
   const topCitiesMap = consultants.reduce<Record<string, number>>((acc, consultant) => {
     acc[consultant.city] = (acc[consultant.city] ?? 0) + 1;
@@ -1331,7 +1333,7 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
 
   return {
     consultantCount: consultants.length,
-    companyCount: companies.length,
+    companyCount: totalEmpresaCount,
     verifiedConsultantCount: consultants.filter((consultant) => consultant.verified).length,
     averageRating,
     eliteConsultantsCount: consultants.filter((consultant) => consultant.rating >= 4.5).length,
