@@ -1,13 +1,15 @@
 'use client';
 
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { motion } from 'motion/react';
-import { Users, Star, UserPlus, UserMinus } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Users, Star, UserPlus, UserMinus, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { GlassCard } from '../components/GlassCard';
+import { ConsultantProfileModal } from '../components/ConsultantProfileModal';
 import { useAuth } from '../context/AuthContext';
 import {
   addConnection,
+  ensureConversation,
   fetchConnections,
   fetchConsultants,
   fetchFavorites,
@@ -15,6 +17,7 @@ import {
   toggleFavorite,
 } from '../../lib/api';
 import type { ConsultantDirectoryItem, NetworkCollection } from '../../lib/backend-types';
+import { useRouter } from 'next/navigation';
 
 const emptyCollection: NetworkCollection = {
   items: [],
@@ -26,6 +29,7 @@ const emptyCollection: NetworkCollection = {
 
 export function NetworkPage() {
   const { profile } = useAuth();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'connections' | 'favorites'>('connections');
   const [consultants, setConsultants] = useState<ConsultantDirectoryItem[]>([]);
   const [connections, setConnections] = useState<NetworkCollection>(emptyCollection);
@@ -33,44 +37,35 @@ export function NetworkPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [selectedConsultant, setSelectedConsultant] = useState<ConsultantDirectoryItem | null>(null);
 
   useEffect(() => {
     let active = true;
 
     Promise.all([fetchConsultants(), fetchConnections(), fetchFavorites()])
       .then(([consultantsResponse, connectionsResponse, favoritesResponse]) => {
-        if (!active) {
-          return;
-        }
-
+        if (!active) return;
         setConsultants(consultantsResponse.items);
         setConnections(connectionsResponse);
         setFavorites(favoritesResponse);
       })
       .catch((fetchError) => {
-        if (active) {
-          setError(fetchError instanceof Error ? fetchError.message : 'No pudimos cargar la red.');
-        }
+        if (active) setError(fetchError instanceof Error ? fetchError.message : 'No pudimos cargar la red.');
       })
       .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       });
 
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
   const connectionIds = useMemo(() => new Set(connections.items.map((item) => item.id)), [connections]);
   const favoriteIds = useMemo(() => new Set(favorites.items.map((item) => item.id)), [favorites]);
-  const discoverItems = consultants.filter((consultant) => !connectionIds.has(consultant.id));
+  const discoverItems = consultants.filter((c) => !connectionIds.has(c.id));
   const activeItems = activeTab === 'connections' ? connections.items : favorites.items;
 
   const handleConnectionToggle = async (consultantId: string, connected: boolean) => {
     setBusyId(consultantId);
-
     try {
       const next = connected ? await removeConnection(consultantId) : await addConnection(consultantId);
       setConnections(next);
@@ -84,7 +79,6 @@ export function NetworkPage() {
 
   const handleFavoriteToggle = async (consultantId: string) => {
     setBusyId(consultantId);
-
     try {
       const next = await toggleFavorite(consultantId);
       setFavorites(next);
@@ -93,6 +87,36 @@ export function NetworkPage() {
       toast.error(actionError instanceof Error ? actionError.message : 'No pudimos actualizar favoritos');
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const handleMessage = async (consultantId: string) => {
+    setBusyId(consultantId);
+    try {
+      const { id } = await ensureConversation(consultantId);
+      router.push(`/mensajes?conversationId=${id}`);
+    } catch {
+      toast.error('No pudimos abrir la conversación. Intenta de nuevo.');
+      setBusyId(null);
+    }
+  };
+
+  // Called from the modal to sync connection state back into the page lists
+  const handleModalConnectionChange = async (profileId: string, nowConnected: boolean) => {
+    try {
+      const next = nowConnected ? await addConnection(profileId) : await removeConnection(profileId);
+      setConnections(next);
+    } catch {
+      // toast already shown by the modal
+    }
+  };
+
+  const handleModalFavoriteChange = async (profileId: string) => {
+    try {
+      const next = await toggleFavorite(profileId);
+      setFavorites(next);
+    } catch {
+      // toast already shown by the modal
     }
   };
 
@@ -159,8 +183,10 @@ export function NetworkPage() {
                     connected={connectionIds.has(consultant.id)}
                     favorite={favoriteIds.has(consultant.id)}
                     busy={busyId === consultant.id}
+                    onViewProfile={() => setSelectedConsultant(consultant)}
                     onToggleConnection={handleConnectionToggle}
                     onToggleFavorite={handleFavoriteToggle}
+                    onMessage={handleMessage}
                   />
                 ))}
           </div>
@@ -175,26 +201,44 @@ export function NetworkPage() {
                 connected={false}
                 favorite={favoriteIds.has(consultant.id)}
                 busy={busyId === consultant.id}
+                onViewProfile={() => setSelectedConsultant(consultant)}
                 onToggleConnection={handleConnectionToggle}
                 onToggleFavorite={handleFavoriteToggle}
+                onMessage={handleMessage}
               />
             ))}
           </div>
         </Section>
       </motion.div>
+
+      <AnimatePresence>
+        {selectedConsultant && (
+          <ConsultantProfileModal
+            consultant={{
+              profileId: selectedConsultant.id,
+              name: selectedConsultant.name,
+              role: selectedConsultant.role,
+              city: selectedConsultant.city,
+              rating: selectedConsultant.rating,
+              experience: selectedConsultant.experience,
+              verified: selectedConsultant.verified,
+              avatarUrl: selectedConsultant.image,
+              bio: selectedConsultant.bio,
+              expertise: selectedConsultant.expertise,
+            }}
+            initialConnected={connectionIds.has(selectedConsultant.id)}
+            initialFavorite={favoriteIds.has(selectedConsultant.id)}
+            onConnectionChange={(id, nowConnected) => void handleModalConnectionChange(id, nowConnected)}
+            onFavoriteChange={(id) => void handleModalFavoriteChange(id)}
+            onClose={() => setSelectedConsultant(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function MetricCard({
-  icon: Icon,
-  title,
-  value,
-}: {
-  icon: typeof Users;
-  title: string;
-  value: string;
-}) {
+function MetricCard({ icon: Icon, title, value }: { icon: typeof Users; title: string; value: string }) {
   return (
     <GlassCard className="p-6">
       <div className="flex items-center gap-4">
@@ -203,29 +247,17 @@ function MetricCard({
         </div>
         <div>
           <p className="text-sm text-white/60">{title}</p>
-          <p className="text-2xl text-white" style={{ fontFamily: 'var(--font-secondary)' }}>
-            {value}
-          </p>
+          <p className="text-2xl text-white" style={{ fontFamily: 'var(--font-secondary)' }}>{value}</p>
         </div>
       </div>
     </GlassCard>
   );
 }
 
-function Section({
-  title,
-  className = '',
-  children,
-}: {
-  title: string;
-  className?: string;
-  children: ReactNode;
-}) {
+function Section({ title, className = '', children }: { title: string; className?: string; children: ReactNode }) {
   return (
     <div className={className}>
-      <h2 className="text-2xl text-white mb-6" style={{ fontFamily: 'var(--font-secondary)' }}>
-        {title}
-      </h2>
+      <h2 className="text-2xl text-white mb-6" style={{ fontFamily: 'var(--font-secondary)' }}>{title}</h2>
       {children}
     </div>
   );
@@ -236,55 +268,82 @@ function ConsultantActionCard({
   connected,
   favorite,
   busy,
+  onViewProfile,
   onToggleConnection,
   onToggleFavorite,
+  onMessage,
 }: {
   consultant: ConsultantDirectoryItem;
   connected: boolean;
   favorite: boolean;
   busy: boolean;
+  onViewProfile: () => void;
   onToggleConnection: (consultantId: string, connected: boolean) => Promise<void>;
   onToggleFavorite: (consultantId: string) => Promise<void>;
+  onMessage: (consultantId: string) => Promise<void>;
 }) {
   return (
-    <GlassCard className="p-6">
-      <div className="flex items-center gap-4 mb-4">
-        <img src={consultant.image} alt={consultant.name} className="w-16 h-16 rounded-xl object-cover" />
-        <div>
-          <h3 className="text-white">{consultant.name}</h3>
-          <p className="text-sm text-white/60">{consultant.role}</p>
+    <GlassCard className="p-6 flex flex-col">
+      {/* Clickable profile area */}
+      <button
+        onClick={onViewProfile}
+        className="flex items-center gap-4 mb-3 text-left group w-full"
+      >
+        <img
+          src={consultant.image}
+          alt={consultant.name}
+          className="w-16 h-16 rounded-xl object-cover flex-shrink-0 group-hover:ring-2 group-hover:ring-[#2563EB]/60 transition-all"
+        />
+        <div className="min-w-0">
+          <h3 className="text-white group-hover:text-[#9CC2FF] transition-colors truncate">{consultant.name}</h3>
+          <p className="text-sm text-white/60 truncate">{consultant.role}</p>
           <p className="text-xs text-white/40">{consultant.city}</p>
         </div>
-      </div>
+      </button>
 
-      <p className="text-sm text-white/70 mb-4 line-clamp-3">{consultant.bio}</p>
+      <p className="text-sm text-white/70 mb-4 line-clamp-2 flex-1">{consultant.bio}</p>
 
-      <div className="flex gap-3">
+      <div className="flex gap-2">
+        {/* Mensaje — solo cuando hay conexión */}
+        {connected && (
+          <button
+            onClick={() => void onMessage(consultant.id)}
+            disabled={busy}
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-[#2563EB]/20 border border-[#2563EB]/40 text-[#9CC2FF] text-xs font-semibold hover:bg-[#2563EB]/30 transition-all disabled:opacity-50"
+          >
+            <MessageSquare className="w-4 h-4" />
+            Mensaje
+          </button>
+        )}
+
+        {/* Conectar / Quitar */}
         <button
           onClick={() => void onToggleConnection(consultant.id, connected)}
           disabled={busy}
-          className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-semibold disabled:opacity-50"
+          className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-semibold disabled:opacity-50 hover:bg-white/10 transition-all"
         >
           {connected ? (
-            <span className="inline-flex items-center gap-2">
-              <UserMinus className="w-4 h-4" />
-              Quitar
+            <span className="inline-flex items-center justify-center gap-1.5">
+              <UserMinus className="w-3.5 h-3.5" /> Quitar
             </span>
           ) : (
-            <span className="inline-flex items-center gap-2">
-              <UserPlus className="w-4 h-4" />
-              Conectar
+            <span className="inline-flex items-center justify-center gap-1.5">
+              <UserPlus className="w-3.5 h-3.5" /> Conectar
             </span>
           )}
         </button>
+
+        {/* Favorito */}
         <button
           onClick={() => void onToggleFavorite(consultant.id)}
           disabled={busy}
-          className={`px-4 rounded-xl border font-semibold disabled:opacity-50 ${
-            favorite ? 'bg-[#f59e0b]/20 border-[#f59e0b]/40 text-[#f59e0b]' : 'bg-white/5 border-white/10 text-white'
+          className={`px-3 rounded-xl border text-xs font-semibold disabled:opacity-50 transition-all ${
+            favorite
+              ? 'bg-[#f59e0b]/20 border-[#f59e0b]/40 text-[#f59e0b]'
+              : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
           }`}
         >
-          <Star className={`w-5 h-5 ${favorite ? 'fill-current' : ''}`} />
+          <Star className={`w-4 h-4 ${favorite ? 'fill-current' : ''}`} />
         </button>
       </div>
     </GlassCard>
