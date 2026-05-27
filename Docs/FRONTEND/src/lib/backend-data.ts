@@ -1555,13 +1555,16 @@ export async function listApplications(filters: {
   const challengeIds = Array.from(new Set(applicationRows.map((row) => row.id_desafio).filter(Boolean))) as number[];
   const consultorIds = Array.from(new Set(applicationRows.map((row) => row.id_consultor).filter(Boolean))) as number[];
 
-  const [challengeResult, companyResult, consultantResult] = await Promise.all([
+  const [challengeResult, companyResult, consultantResult, profileResult] = await Promise.all([
     challengeIds.length
       ? db.from('desafio').select('*').in('id_desafio', challengeIds)
       : Promise.resolve({ data: [], error: null }),
     db.from('empresa').select('*'),
     consultorIds.length
       ? db.from('consultor').select('*').in('id_consultor', consultorIds)
+      : Promise.resolve({ data: [], error: null }),
+    consultorIds.length
+      ? db.from('profiles').select('id, consultor_id').in('consultor_id', consultorIds)
       : Promise.resolve({ data: [], error: null }),
   ]);
 
@@ -1601,6 +1604,12 @@ export async function listApplications(filters: {
     {},
   );
 
+  const profileIdByConsultorId = new Map<number, string>(
+    ((profileResult.data ?? []) as Array<{ id: string; consultor_id: number | null }>)
+      .filter((p): p is { id: string; consultor_id: number } => p.consultor_id != null)
+      .map((p) => [p.consultor_id, p.id]),
+  );
+
   let items = applicationRows.map((row) => {
     const challenge = row.id_desafio ? challenges[row.id_desafio] : null;
     const company = challenge?.id_empresa ? companies[challenge.id_empresa] : null;
@@ -1610,6 +1619,10 @@ export async function listApplications(filters: {
     if (!result.consultantId && row.id_consultor && consultant) {
       result.consultantId = consultant.id_consultor;
     }
+
+    result.consultantProfileId = row.id_consultor
+      ? (profileIdByConsultorId.get(row.id_consultor) ?? null)
+      : null;
 
     return result;
   });

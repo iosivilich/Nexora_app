@@ -74,6 +74,7 @@ export interface ApplicationSummary {
   challengeId: number | null;
   companyId?: number | null;
   consultantId: number | null;
+  consultantProfileId?: string | null;
   consultantName?: string | null;
   consultantEmail?: string | null;
   status: string;

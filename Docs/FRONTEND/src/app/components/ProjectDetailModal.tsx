@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Trash2, Save, Users, Calendar, Briefcase, AlertTriangle } from 'lucide-react';
-import { deleteChallenge, fetchApplications, updateChallenge } from '../../lib/api';
+import { X, Trash2, Save, Users, Calendar, Briefcase, AlertTriangle, MessageCircle } from 'lucide-react';
+import { deleteChallenge, ensureConversation, fetchApplications, updateChallenge } from '../../lib/api';
 import type { ApplicationSummary, ChallengeSummary } from '../../lib/backend-types';
 
 interface ProjectDetailModalProps {
@@ -34,6 +35,9 @@ export function ProjectDetailModal({ project, onClose, onDeleted, onUpdated }: P
   const [budget, setBudget] = useState(project.budget != null ? String(project.budget) : '');
   const [mode, setMode] = useState(project.mode);
   const [status, setStatus] = useState(project.status.toLowerCase());
+
+  const router = useRouter();
+  const [messagingId, setMessagingId] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -68,6 +72,17 @@ export function ProjectDetailModal({ project, onClose, onDeleted, onUpdated }: P
       setSaveError(err instanceof Error ? err.message : 'Error al guardar.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleMessage(profileId: string) {
+    setMessagingId(profileId);
+    try {
+      const conv = await ensureConversation(profileId);
+      router.push(`/mensajes?conversationId=${conv.id}`);
+      onClose();
+    } finally {
+      setMessagingId(null);
     }
   }
 
@@ -281,9 +296,21 @@ export function ProjectDetailModal({ project, onClose, onDeleted, onUpdated }: P
                             <p className="text-white/40 text-xs">{app.consultantEmail}</p>
                           )}
                         </div>
-                        <span className="px-3 py-1 rounded-lg text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
-                          {app.status}
-                        </span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {app.consultantProfileId && (
+                            <button
+                              onClick={() => void handleMessage(app.consultantProfileId!)}
+                              disabled={messagingId === app.consultantProfileId}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs rounded-lg font-medium transition-all disabled:opacity-50 shadow shadow-blue-500/30"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              {messagingId === app.consultantProfileId ? 'Abriendo…' : 'Mensaje'}
+                            </button>
+                          )}
+                          <span className="px-3 py-1 rounded-lg text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
+                            {app.status}
+                          </span>
+                        </div>
                       </div>
                       <p className="text-white/60 text-sm line-clamp-3">{app.coverLetter}</p>
                       <div className="flex flex-wrap gap-3 text-xs text-white/40">
