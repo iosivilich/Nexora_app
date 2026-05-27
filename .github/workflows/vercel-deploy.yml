@@ -50,10 +50,6 @@ jobs:
       - name: Pull Vercel Production Settings
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Inject secrets into env
-        run: |
-          echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> .env.production.local
-
       - name: Build Production Artifacts
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
