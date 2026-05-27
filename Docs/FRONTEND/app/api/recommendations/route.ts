@@ -152,7 +152,21 @@ export async function GET(request: Request) {
       });
       if (error) throw error;
 
-      const candidates: EmpresaCandidate[] = ((data ?? []) as EmpresaMatch[]).map((row) => {
+      const rawEmpresaRows = (data ?? []) as EmpresaMatch[];
+      const empresaIds = rawEmpresaRows.map((r) => r.id_empresa);
+
+      // Batch-fetch empresa profile UUIDs so the frontend can call addConnection/ensureConversation
+      const { data: empresaProfileRows } = await getDb()
+        .from('profiles')
+        .select('id, empresa_id')
+        .in('empresa_id', empresaIds);
+      const profileIdByEmpresaId = new Map<number, string>(
+        (empresaProfileRows ?? [])
+          .filter((p): p is { id: string; empresa_id: number } => p.empresa_id != null)
+          .map((p) => [p.empresa_id, p.id]),
+      );
+
+      const candidates: EmpresaCandidate[] = rawEmpresaRows.map((row) => {
         const razonSocial = row.nombre_empresa ?? '';
         return {
           id: row.id_empresa,
@@ -170,11 +184,16 @@ export async function GET(request: Request) {
         };
       });
 
-      const items = rankEmpresas(
+      const ranked = rankEmpresas(
         { city: consultor?.ciudad ?? context.profile.city ?? '' },
         candidates,
         k,
       );
+
+      const items = ranked.map((r) => ({
+        ...r,
+        item: { ...r.item, profileId: profileIdByEmpresaId.get(r.id as number) ?? null },
+      }));
 
       return NextResponse.json({
         userType,

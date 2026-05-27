@@ -282,6 +282,7 @@ export interface RecommendedConsultant {
 
 export interface RecommendedEmpresa {
   id:             string | number;
+  profileId?:     string | null;
   nombreEmpresa:  string;
   razonSocial:    string;
   text:           string;

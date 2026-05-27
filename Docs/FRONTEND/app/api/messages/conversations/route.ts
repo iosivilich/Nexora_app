@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import {
   getAuthenticatedContext,
   getOrCreateConversation,
+  getOrCreateConversationAsConsultor,
   listConversations,
 } from '../../../../src/lib/backend-data';
 
@@ -31,19 +32,20 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as {
-      consultantId?: string;
-    };
+    const body = (await request.json()) as { consultantId?: string };
 
     if (!body.consultantId) {
-      return NextResponse.json(
-        { error: 'consultantId es obligatorio.' },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: 'consultantId es obligatorio.' }, { status: 400 });
     }
 
     const context = await getAuthenticatedContext();
-    const conversation = await getOrCreateConversation(context.profileId, body.consultantId, context.routeClient);
+    const userType = context.profile.user_type;
+
+    // CONSULTORs initiate toward an EMPRESA (reversed roles in the conversations table)
+    const conversation =
+      userType === 'CONSULTOR'
+        ? await getOrCreateConversationAsConsultor(context.profileId, body.consultantId, context.routeClient)
+        : await getOrCreateConversation(context.profileId, body.consultantId, context.routeClient);
 
     return NextResponse.json(conversation, { status: 201 });
   } catch (error) {

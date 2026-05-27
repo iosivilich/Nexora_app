@@ -2389,19 +2389,53 @@ async function getNetworkCollection(
   const rows = (data ?? []) as Array<ConnectionRow | FavoriteRow>;
   const consultants = await getConsultants();
   const byId = new Map(consultants.map((consultant) => [consultant.id, consultant]));
+
+  // Collect UUIDs not found in the consultant catalog (may be empresa profiles)
+  const missingIds = rows
+    .map((r) => r.consultant_profile_id)
+    .filter((id) => !byId.has(id));
+
+  // Batch-fetch missing profiles (empresa side of CONSULTOR connections)
+  const empresaFallbackMap = new Map<string, NetworkDirectoryItem>();
+  if (missingIds.length > 0) {
+    const { data: profileRows } = await getDatabaseClient()
+      .from('profiles')
+      .select('id, full_name, avatar_url, city, user_type')
+      .in('id', missingIds)
+      .eq('user_type', 'EMPRESA');
+
+    for (const p of profileRows ?? []) {
+      const pr = p as { id: string; full_name: string | null; avatar_url: string | null; city: string | null; user_type: string };
+      empresaFallbackMap.set(pr.id, {
+        id: pr.id,
+        name: pr.full_name ?? 'Empresa',
+        role: 'Empresa',
+        location: pr.city ?? '',
+        city: pr.city ?? '',
+        rating: 0,
+        projects: 0,
+        experience: 0,
+        age: 0,
+        expertise: [],
+        image: pr.avatar_url || `https://ui-avatars.com/api/?background=1E3A5F&color=FFFFFF&bold=true&name=${encodeURIComponent(pr.full_name ?? 'E')}`,
+        verified: false,
+        bio: '',
+        connectedAt: null,
+      });
+    }
+  }
+
   const items = rows
     .map((row) => {
       const consultant = byId.get(row.consultant_profile_id);
-      if (!consultant) {
-        return null;
+      if (consultant) {
+        return { ...consultant, connectedAt: row.created_at ?? null } as NetworkDirectoryItem;
       }
-
-      const item: NetworkDirectoryItem = {
-        ...consultant,
-        connectedAt: row.created_at ?? null,
-      };
-
-      return item;
+      const empresa = empresaFallbackMap.get(row.consultant_profile_id);
+      if (empresa) {
+        return { ...empresa, connectedAt: row.created_at ?? null } as NetworkDirectoryItem;
+      }
+      return null;
     })
     .filter((item): item is NetworkDirectoryItem => Boolean(item));
 
@@ -2436,20 +2470,29 @@ async function updateNetworkCollection(
   consultantId: string,
   mode: 'add' | 'remove' | 'toggle',
   db: SupabaseClient = getDatabaseClient(),
+  skipConsultantValidation = false,
 ) {
   const table = kind === 'connections' ? 'connections' : 'favorites';
-  const { data: consultantData, error: consultantError } = await getDatabaseClient()
-    .from('consultants')
-    .select('id')
-    .eq('id', consultantId)
-    .maybeSingle();
 
-  if (consultantError) {
-    throw consultantError;
-  }
+  if (!skipConsultantValidation) {
+    const { data: consultantData, error: consultantError } = await getDatabaseClient()
+      .from('consultants')
+      .select('id')
+      .eq('id', consultantId)
+      .maybeSingle();
 
-  if (!consultantData) {
-    throw createRuntimeError('No encontramos el consultor seleccionado.', 404);
+    if (consultantError) throw consultantError;
+    if (!consultantData) throw createRuntimeError('No encontramos el consultor seleccionado.', 404);
+  } else {
+    // For CONSULTOR→EMPRESA connections: verify the target profile exists
+    const { data: profileData, error: profileError } = await getDatabaseClient()
+      .from('profiles')
+      .select('id')
+      .eq('id', consultantId)
+      .maybeSingle();
+
+    if (profileError) throw profileError;
+    if (!profileData) throw createRuntimeError('No encontramos el perfil seleccionado.', 404);
   }
 
   if (mode === 'remove') {
@@ -2499,6 +2542,14 @@ async function updateNetworkCollection(
   return kind === 'connections'
     ? listNetworkConnections(profileId, db)
     : listFavoriteConsultants(profileId, db);
+}
+
+export async function addNetworkConnectionSkipValidation(
+  profileId: string,
+  targetProfileId: string,
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  return updateNetworkCollection(profileId, 'connections', targetProfileId, 'add', db, true);
 }
 
 export async function addNetworkConnection(
@@ -2624,6 +2675,54 @@ export async function getOrCreateConversation(
     throw error;
   }
 
+  return data as ConversationRow;
+}
+
+export async function getOrCreateConversationAsConsultor(
+  consultorProfileId: string,
+  empresaProfileId: string,
+  db: SupabaseClient = getDatabaseClient(),
+) {
+  const dbAdmin = getDatabaseClient();
+  const [consultorResult, empresaResult, existingResult] = await Promise.all([
+    dbAdmin.from('profiles').select('id, user_type').eq('id', consultorProfileId).maybeSingle(),
+    dbAdmin.from('profiles').select('id, user_type').eq('id', empresaProfileId).maybeSingle(),
+    db
+      .from('conversations')
+      .select('*')
+      .eq('company_user_id', empresaProfileId)
+      .eq('consultant_user_id', consultorProfileId)
+      .maybeSingle(),
+  ]);
+
+  if (consultorResult.error) throw consultorResult.error;
+  if (empresaResult.error) throw empresaResult.error;
+  if (existingResult.error) throw existingResult.error;
+
+  const consultorProfile = consultorResult.data as Pick<ProfileRow, 'id' | 'user_type'> | null;
+  if (!consultorProfile || consultorProfile.user_type !== 'CONSULTOR') {
+    throw createRuntimeError('Solo un consultor autenticado puede usar este flujo.', 403);
+  }
+
+  const empresaProfile = empresaResult.data as Pick<ProfileRow, 'id' | 'user_type'> | null;
+  if (!empresaProfile) {
+    throw createRuntimeError('No encontramos la empresa seleccionada.', 404);
+  }
+
+  const existing = existingResult.data as ConversationRow | null;
+  if (existing) return existing;
+
+  const { data, error } = await db
+    .from('conversations')
+    .insert({
+      company_user_id: empresaProfileId,
+      consultant_user_id: consultorProfileId,
+      last_message_at: new Date().toISOString(),
+    })
+    .select('*')
+    .single();
+
+  if (error) throw error;
   return data as ConversationRow;
 }
 

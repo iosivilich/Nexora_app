@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
   addNetworkConnection,
+  addNetworkConnectionSkipValidation,
   getAuthenticatedContext,
   listNetworkConnections,
   removeNetworkConnection,
@@ -40,7 +41,11 @@ export async function POST(request: Request) {
     }
 
     const context = await getAuthenticatedContext();
-    const collection = await addNetworkConnection(context.profileId, body.consultantId, context.routeClient);
+    // CONSULTORs connecting with EMPRESAs skip the consultants-table validation
+    const collection =
+      context.profile.user_type === 'CONSULTOR'
+        ? await addNetworkConnectionSkipValidation(context.profileId, body.consultantId, context.routeClient)
+        : await addNetworkConnection(context.profileId, body.consultantId, context.routeClient);
     return NextResponse.json(collection);
   } catch (error) {
     console.error('POST /api/network/connections failed', error);
